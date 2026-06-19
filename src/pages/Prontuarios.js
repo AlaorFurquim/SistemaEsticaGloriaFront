@@ -9,11 +9,15 @@ export default function Prontuarios() {
   const [profissionais, setProfissionais] = useState([]);
   const [clienteId, setClienteId] = useState("");
   const [lista, setLista] = useState([]);
+
   const [form, setForm] = useState({
     profissionalId: "",
     tipoConsulta: "PrimeiraConsulta",
     observacoes: ""
   });
+
+  const [fotoAntes, setFotoAntes] = useState(null);
+  const [fotoDepois, setFotoDepois] = useState(null);
   const [arquivos, setArquivos] = useState([]);
 
   async function carregarBase() {
@@ -22,6 +26,7 @@ export default function Prontuarios() {
         api.get("/clientes"),
         api.get("/profissionais")
       ]);
+
       setClientes(cli.data || []);
       setProfissionais(prof.data || []);
     } catch {
@@ -76,6 +81,14 @@ export default function Prontuarios() {
     data.append("tipoConsulta", form.tipoConsulta);
     data.append("observacoes", form.observacoes || "");
 
+    if (fotoAntes) {
+      data.append("arquivos", fotoAntes);
+    }
+
+    if (fotoDepois) {
+      data.append("arquivos", fotoDepois);
+    }
+
     arquivos.forEach((arquivo) => {
       data.append("arquivos", arquivo);
     });
@@ -92,9 +105,13 @@ export default function Prontuarios() {
         tipoConsulta: "PrimeiraConsulta",
         observacoes: ""
       });
+
+      setFotoAntes(null);
+      setFotoDepois(null);
       setArquivos([]);
 
       await carregarProntuarios();
+
       fecharLoading();
       alertaSucesso("Prontuário salvo com sucesso.");
     } catch (error) {
@@ -184,18 +201,39 @@ export default function Prontuarios() {
             </select>
           </div>
 
-          <div className="col-md-6">
-            <label>Fotos e anexos</label>
+          <div className="col-md-3">
+            <label>Foto antes</label>
+            <input
+              className="form-control"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => setFotoAntes(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div className="col-md-3">
+            <label>Foto depois</label>
+            <input
+              className="form-control"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => setFotoDepois(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div className="col-md-12">
+            <label>Outros anexos</label>
             <input
               className="form-control"
               type="file"
               multiple
               accept="image/*,.pdf"
-              capture="environment"
               onChange={(e) => setArquivos(Array.from(e.target.files || []))}
             />
             <small className="text-muted">
-              Use para fotos antes/depois, PDFs de consentimento ou imagens da evolução.
+              Use para PDFs de consentimento, documentos ou imagens adicionais.
             </small>
           </div>
 
