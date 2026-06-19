@@ -11,7 +11,7 @@ export default function Prontuarios() {
   const [lista, setLista] = useState([]);
   const [form, setForm] = useState({
     profissionalId: "",
-    tipoConsulta: "Consulta",
+    tipoConsulta: "PrimeiraConsulta",
     observacoes: ""
   });
   const [arquivos, setArquivos] = useState([]);
@@ -49,12 +49,12 @@ export default function Prontuarios() {
         return "Retorno";
       case "PrimeiraConsulta":
       case "Primeira Consulta":
-        return "Primeira consulta";
+        return "Avaliação inicial";
       case "Consulta":
       case "Consulta Normal":
-        return "Consulta normal";
+        return "Procedimento";
       default:
-        return "Consulta normal";
+        return "Procedimento";
     }
   }
 
@@ -89,7 +89,7 @@ export default function Prontuarios() {
 
       setForm({
         profissionalId: "",
-        tipoConsulta: "Consulta",
+        tipoConsulta: "PrimeiraConsulta",
         observacoes: ""
       });
       setArquivos([]);
@@ -127,7 +127,7 @@ export default function Prontuarios() {
     <div>
       <PageHeader
         title="Prontuários"
-        subtitle="Histórico clínico com fotos, PDFs e anexos salvos no banco"
+        subtitle="Histórico estético com evolução, fotos, PDFs e anexos"
       />
 
       <div className="panel mb-3">
@@ -170,7 +170,7 @@ export default function Prontuarios() {
           </div>
 
           <div className="col-md-3">
-            <label>Tipo de consulta</label>
+            <label>Tipo de registro</label>
             <select
               className="form-select"
               value={form.tipoConsulta}
@@ -178,14 +178,14 @@ export default function Prontuarios() {
                 setForm({ ...form, tipoConsulta: e.target.value })
               }
             >
-              <option value="Consulta">Consulta normal</option>
-              <option value="PrimeiraConsulta">Primeira consulta</option>
+              <option value="PrimeiraConsulta">Avaliação inicial</option>
+              <option value="Consulta">Procedimento</option>
               <option value="Retorno">Retorno</option>
             </select>
           </div>
 
           <div className="col-md-6">
-            <label>Anexos / câmera</label>
+            <label>Fotos e anexos</label>
             <input
               className="form-control"
               type="file"
@@ -195,15 +195,16 @@ export default function Prontuarios() {
               onChange={(e) => setArquivos(Array.from(e.target.files || []))}
             />
             <small className="text-muted">
-              No celular, este campo permite tirar foto na hora ou escolher da galeria.
+              Use para fotos antes/depois, PDFs de consentimento ou imagens da evolução.
             </small>
           </div>
 
           <div className="col-md-12">
-            <label>Observações</label>
+            <label>Evolução, queixa principal e conduta</label>
             <textarea
               className="form-control"
-              rows="4"
+              rows="5"
+              placeholder="Ex.: queixa principal, procedimento realizado, produtos utilizados, orientações pós-procedimento e retorno sugerido."
               value={form.observacoes}
               onChange={(e) =>
                 setForm({ ...form, observacoes: e.target.value })
@@ -225,8 +226,8 @@ export default function Prontuarios() {
             <tr>
               <th>Data</th>
               <th>Profissional</th>
-              <th>Tipo</th>
-              <th>Observações</th>
+              <th>Registro</th>
+              <th>Evolução / conduta</th>
               <th>Anexos</th>
             </tr>
           </thead>

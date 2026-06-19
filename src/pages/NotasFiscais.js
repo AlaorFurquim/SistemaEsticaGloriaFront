@@ -10,10 +10,6 @@ import {
   fecharLoading
 } from "../utils/alerts";
 
-const inicialEmissao = {
-  vendaId: ""
-};
-
 const inicialEntrada = {
   cnpj: "",
   ultimoNsu: "",
@@ -22,34 +18,32 @@ const inicialEntrada = {
 
 export default function NotasFiscais() {
   const [notas, setNotas] = useState([]);
-  const [emissao, setEmissao] = useState(inicialEmissao);
+  const [vendas, setVendas] = useState([]);
+  const [filtroVendas, setFiltroVendas] = useState("");
+  const [somentePendentes, setSomentePendentes] = useState(true);
   const [entrada, setEntrada] = useState(inicialEntrada);
 
   async function carregar() {
     try {
-      const res = await api.get("/notas-fiscais");
-      setNotas(res.data);
+      const [notasRes, vendasRes] = await Promise.all([
+        api.get("/notas-fiscais"),
+        api.get("/notas-fiscais/vendas-para-emissao", {
+          params: { filtro: filtroVendas || null, somentePendentes }
+        })
+      ]);
+
+      setNotas(notasRes.data || []);
+      setVendas(vendasRes.data || []);
     } catch (error) {
       alertaErro(error.response?.data || "Não foi possível carregar as notas fiscais.");
     }
   }
 
-  async function emitirVendaCompleta(e) {
-    e.preventDefault();
-
-    if (!emissao.vendaId) {
-      alertaErro("Informe o ID da venda.");
-      return;
-    }
-
+  async function emitirVendaCompleta(venda) {
     try {
       loading();
-
-      await api.post(`/notas-fiscais/emitir-venda-completa/${emissao.vendaId}`);
-
-      setEmissao(inicialEmissao);
+      await api.post(`/notas-fiscais/emitir-venda-completa/${venda.id}`);
       await carregar();
-
       fecharLoading();
       await alertaSucesso("Nota fiscal enviada para emissão com sucesso.");
     } catch (error) {
@@ -79,7 +73,7 @@ export default function NotasFiscais() {
       await carregar();
 
       fecharLoading();
-      await alertaSucesso("Consulta de notas de entrada enviada para a Nuvem Fiscal.");
+      await alertaSucesso("Consulta de notas de entrada enviada para a ACBr.");
     } catch (error) {
       fecharLoading();
       alertaErro(error.response?.data || error.message || "Não foi possível sincronizar as notas de entrada.");
@@ -89,11 +83,8 @@ export default function NotasFiscais() {
   async function consultarStatus(nota) {
     try {
       loading();
-
       await api.post(`/notas-fiscais/sincronizar-status/${nota.id}`);
-
       await carregar();
-
       fecharLoading();
       await alertaSucesso("Status da nota atualizado.");
     } catch (error) {
@@ -105,11 +96,8 @@ export default function NotasFiscais() {
   async function consultarCancelamento(nota) {
     try {
       loading();
-
       await api.get(`/notas-fiscais/${nota.id}/cancelamento`);
-
       await carregar();
-
       fecharLoading();
       await alertaSucesso("Status do cancelamento atualizado.");
     } catch (error) {
@@ -119,10 +107,7 @@ export default function NotasFiscais() {
   }
 
   async function cancelarNota(nota) {
-    const justificativa = window.prompt(
-      "Informe a justificativa do cancelamento com pelo menos 15 caracteres:"
-    );
-
+    const justificativa = window.prompt("Informe a justificativa do cancelamento com pelo menos 15 caracteres:");
     if (!justificativa) return;
 
     if (justificativa.length < 15) {
@@ -132,40 +117,62 @@ export default function NotasFiscais() {
 
     try {
       loading();
-
-      await api.post(`/notas-fiscais/${nota.id}/cancelar`, {
-        justificativa
-      });
-
+      await api.post(`/notas-fiscais/${nota.id}/cancelar`, { justificativa });
       await carregar();
-
       fecharLoading();
-      await alertaSucesso("Cancelamento enviado para a Nuvem Fiscal.");
+      await alertaSucesso("Cancelamento enviado para a ACBr.");
     } catch (error) {
       fecharLoading();
       alertaErro(error.response?.data || "Não foi possível cancelar a nota.");
     }
   }
 
-  function baixarPdf(nota) {
-    window.open(`${api.defaults.baseURL}/notas-fiscais/${nota.id}/pdf`, "_blank");
-  }
+  async function baixarPdf(nota) {
+  try {
+    const response = await api.get(`/notas-fiscais/${nota.id}/pdf`, {
+      responseType: "blob"
+    });
 
-  function baixarXml(nota) {
-    window.open(`${api.defaults.baseURL}/notas-fiscais/${nota.id}/xml`, "_blank");
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+
+    window.open(url, "_blank");
+  } catch (error) {
+    alertaErro("Não foi possível abrir o PDF.");
   }
+}
+
+async function baixarXml(nota) {
+  try {
+    const response = await api.get(`/notas-fiscais/${nota.id}/xml`, {
+      responseType: "blob"
+    });
+
+    const blob = new Blob([response.data], { type: "application/xml" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `nota-${nota.id}.xml`;
+    link.click();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    alertaErro("Não foi possível baixar o XML.");
+  }
+}
 
   function abrirInformacaoFiscal() {
     alertaInfo(
-      "Integração Nuvem Fiscal",
+      "Integração ACBr",
       `
         <div style="text-align:left">
-          <p><b>Emissão pelo PDV:</b> ao finalizar a venda, o sistema chama a emissão automática.</p>
+          <p><b>Emissão por venda:</b> selecione a venda na lista e clique em emitir.</p>
           <p><b>Produto:</b> gera NFC-e.</p>
           <p><b>Serviço:</b> gera NFS-e.</p>
           <p><b>Venda mista:</b> gera uma NFC-e para produtos e uma NFS-e para serviços.</p>
-          <p><b>Emitente:</b> vem do appsettings do backend em NuvemFiscal:CnpjEmitente.</p>
-          <p><b>Cliente:</b> vem do cadastro da venda. Se tiver CPF/CNPJ, vai identificado; se não tiver, consumidor final.</p>
+          <p><b>Duplicidade:</b> vendas já emitidas ficam bloqueadas; vendas parciais emitem apenas o que falta.</p>
+          <p><b>Emitente:</b> vem do appsettings do backend em AcbrApi:CnpjEmitente.</p>
         </div>
       `
     );
@@ -174,13 +181,13 @@ export default function NotasFiscais() {
   function classeStatus(status) {
     const texto = String(status || "").toLowerCase();
 
-    if (texto.includes("autoriz") || texto.includes("emitida"))
+    if (texto.includes("autoriz") || texto.includes("emitida") || texto === "emitida")
       return "badge bg-success";
 
     if (texto.includes("cancel"))
       return "badge bg-danger";
 
-    if (texto.includes("rejeit") || texto.includes("erro"))
+    if (texto.includes("rejeit") || texto.includes("erro") || texto.includes("parcial"))
       return "badge bg-warning text-dark";
 
     if (texto.includes("pendente") || texto.includes("process"))
@@ -191,42 +198,91 @@ export default function NotasFiscais() {
 
   useEffect(() => {
     carregar();
-  }, []);
+  }, [somentePendentes]);
 
   return (
     <div>
-      <PageHeader title="Notas Fiscais" subtitle="Integração fiscal com Nuvem Fiscal">
+      <PageHeader title="Notas Fiscais" subtitle="Emissão fiscal por venda, sem procurar ID manualmente">
         <button type="button" className="btn btn-outline-primary" onClick={abrirInformacaoFiscal}>
           Sobre integração fiscal
         </button>
       </PageHeader>
 
-      <form className="panel mb-3" onSubmit={emitirVendaCompleta}>
-        <h5>Emitir nota de venda</h5>
-
-        <div className="row g-2">
-          <div className="col-md-3">
-            <label>Venda ID</label>
-            <input
-              className="form-control"
-              value={emissao.vendaId}
-              onChange={e => setEmissao({ ...emissao, vendaId: e.target.value })}
-              placeholder="Ex: 1"
-              required
-            />
+      <div className="panel mb-3">
+        <div className="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
+          <div>
+            <h5 className="mb-1">Vendas para emissão</h5>
+            <small className="text-muted">Escolha a venda e emita NFC-e, NFS-e ou ambas automaticamente.</small>
           </div>
 
-          <div className="col-md-9 d-flex align-items-end justify-content-end">
-            <button className="btn btn-success">
-              Emitir venda completa
-            </button>
+          <div className="d-flex gap-2 flex-wrap align-items-center">
+            <input
+              className="form-control fiscal-search"
+              value={filtroVendas}
+              onChange={e => setFiltroVendas(e.target.value)}
+              placeholder="Buscar cliente, CPF/CNPJ ou venda"
+            />
+            <button type="button" className="btn btn-outline-secondary" onClick={carregar}>Buscar</button>
+            <label className="form-check d-flex align-items-center gap-2 m-0">
+              <input className="form-check-input" type="checkbox" checked={somentePendentes} onChange={e => setSomentePendentes(e.target.checked)} />
+              <span className="form-check-label">Somente pendentes</span>
+            </label>
           </div>
         </div>
 
-        <small className="text-muted">
-          O sistema identifica automaticamente se a venda possui produto, serviço ou ambos.
-        </small>
-      </form>
+        <table className="table professional-table">
+          <thead>
+            <tr>
+              <th>Venda</th>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Pagamento</th>
+              <th>Total</th>
+              <th>Status fiscal</th>
+              <th>Notas</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {vendas.map(venda => (
+              <tr key={venda.id}>
+                <td>#{venda.id}</td>
+                <td>{formatarDataHora(venda.data)}</td>
+                <td>{venda.cliente?.nome || "Consumidor final"}</td>
+                <td>{venda.tipoVenda}</td>
+                <td>{venda.formaPagamento}</td>
+                <td>{formatarMoeda(venda.total)}</td>
+                <td><span className={classeStatus(venda.statusFiscal)}>{venda.statusFiscal}</span></td>
+                <td>
+                  {(venda.notas || []).length
+                    ? venda.notas.map(n => `${n.tipo} ${n.status || ""}`).join(" | ")
+                    : "-"}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-success btn-sm"
+                    onClick={() => emitirVendaCompleta(venda)}
+                    disabled={venda.statusFiscal === "Emitida"}
+                  >
+                    {venda.statusFiscal === "Parcial" ? "Emitir faltante" : "Emitir"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+
+            {!vendas.length && (
+              <tr>
+                <td colSpan="9" className="text-center text-muted py-4">
+                  Nenhuma venda pendente para emissão.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <form className="panel mb-3" onSubmit={sincronizarEntradas}>
         <h5>Sincronizar notas de entrada</h5>
@@ -289,6 +345,7 @@ export default function NotasFiscais() {
               <th>Número</th>
               <th>Status</th>
               <th>Valor</th>
+              <th>Venda</th>
               <th>Referência</th>
               <th>Chave/Código</th>
               <th>Ações</th>
@@ -302,60 +359,18 @@ export default function NotasFiscais() {
                 <td>{x.operacao}</td>
                 <td>{x.tipo}</td>
                 <td>{x.numero || "-"}</td>
-                <td>
-                  <span className={classeStatus(x.status)}>
-                    {x.status || "Pendente"}
-                  </span>
-                </td>
+                <td><span className={classeStatus(x.status)}>{x.status || "Pendente"}</span></td>
                 <td>{formatarMoeda(x.valorTotal || 0)}</td>
+                <td>{x.vendaId ? `#${x.vendaId}` : "-"}</td>
                 <td>{x.referenciaNuvemFiscal || "-"}</td>
                 <td>{x.chaveOuCodigo || "-"}</td>
                 <td>
                   <div className="d-flex flex-wrap gap-1">
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => consultarStatus(x)}
-                      disabled={!x.referenciaNuvemFiscal}
-                    >
-                      Status
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary btn-sm"
-                      onClick={() => baixarPdf(x)}
-                      disabled={!x.referenciaNuvemFiscal}
-                    >
-                      PDF
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-outline-dark btn-sm"
-                      onClick={() => baixarXml(x)}
-                      disabled={!x.referenciaNuvemFiscal}
-                    >
-                      XML
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-outline-warning btn-sm"
-                      onClick={() => consultarCancelamento(x)}
-                      disabled={!x.referenciaNuvemFiscal}
-                    >
-                      Canc. status
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-outline-danger btn-sm"
-                      onClick={() => cancelarNota(x)}
-                      disabled={!x.referenciaNuvemFiscal}
-                    >
-                      Cancelar
-                    </button>
+                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => consultarStatus(x)} disabled={!x.referenciaNuvemFiscal}>Status</button>
+                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => baixarPdf(x)} disabled={!x.referenciaNuvemFiscal}>PDF</button>
+                    <button type="button" className="btn btn-outline-dark btn-sm" onClick={() => baixarXml(x)} disabled={!x.referenciaNuvemFiscal}>XML</button>
+                    <button type="button" className="btn btn-outline-warning btn-sm" onClick={() => consultarCancelamento(x)} disabled={!x.referenciaNuvemFiscal}>Canc. status</button>
+                    <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => cancelarNota(x)} disabled={!x.referenciaNuvemFiscal}>Cancelar</button>
                   </div>
                 </td>
               </tr>
@@ -363,7 +378,7 @@ export default function NotasFiscais() {
 
             {!notas.length && (
               <tr>
-                <td colSpan="9" className="text-center text-muted py-4">
+                <td colSpan="10" className="text-center text-muted py-4">
                   Nenhuma nota fiscal registrada.
                 </td>
               </tr>

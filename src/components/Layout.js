@@ -105,7 +105,12 @@ export default function Layout() {
             >
               <MenuLink to="/agenda" icon="📅">Agenda</MenuLink>
               <MenuLink to="/atendimentos" icon="📝">Atendimentos</MenuLink>
+              <MenuLink to="/anamneses" icon="📋">Anamnese</MenuLink>
               <MenuLink to="/prontuarios" icon="📋">Prontuários</MenuLink>
+              <MenuLink to="/termos" icon="📄">Termos</MenuLink>
+              <MenuLink to="/fotos-evolucao" icon="🖼️">Fotos</MenuLink>
+              <MenuLink to="/planos-tratamento" icon="🗂️">Planos</MenuLink>
+              <MenuLink to="/receitas" icon="🧾">Receitas</MenuLink>
               <MenuLink to="/orcamentos" icon="💰">Orçamentos</MenuLink>
             </MenuGroup>
           )}
@@ -146,6 +151,7 @@ export default function Layout() {
             >
               <MenuLink to="/produtos" icon="🧴">Produtos</MenuLink>
               <MenuLink to="/estoque" icon="📦">Movimentações</MenuLink>
+              <MenuLink to="/estoque-lotes" icon="🏷️">Lotes / Validade</MenuLink>
             </MenuGroup>
           )}
 
@@ -162,6 +168,7 @@ export default function Layout() {
               <MenuLink to="/pdvs" icon="🧾">
                 PDVs / Terminais
               </MenuLink>
+              <MenuLink to="/configuracao-clinica" icon="🏥">Clínica</MenuLink>
             </MenuGroup>
           )}
 
@@ -175,6 +182,9 @@ export default function Layout() {
             >
               <MenuLink to="/notas-fiscais" icon="🧾">Notas Fiscais</MenuLink>
               <MenuLink to="/relatorios" icon="📈">Relatórios</MenuLink>
+              <MenuLink to="/alertas" icon="⚠️">Alertas</MenuLink>
+              <MenuLink to="/financeiro-completo" icon="💳">Financeiro</MenuLink>
+              <MenuLink to="/crm" icon="💬">CRM</MenuLink>
               <MenuLink to="/configuracao-nfse" icon="🔧">Configuração NFS-e</MenuLink>
             </MenuGroup>
           )}
@@ -188,6 +198,7 @@ export default function Layout() {
               onToggle={toggleMenu}
             >
               <MenuLink to="/usuarios" icon="👨‍💻">Usuários</MenuLink>
+              <MenuLink to="/lgpd" icon="🛡️">LGPD</MenuLink>
             </MenuGroup>
           )}
         </nav>

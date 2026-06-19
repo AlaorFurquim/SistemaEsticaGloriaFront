@@ -12,6 +12,9 @@ const inicial = {
   nome: "",
   telefone: "",
   especialidade: "",
+  conselhoProfissional: "",
+  numeroConselho: "",
+  ufConselho: "",
   percentualComissao: 40,
   corAgenda: "#6f4cff",
   ativo: true
@@ -164,6 +167,35 @@ export default function Profissionais() {
             />
           </div>
 
+          <div className="col-md-2">
+            <label>Conselho</label>
+            <input
+              className="form-control"
+              placeholder="CRM, CRBM, CREFITO..."
+              value={form.conselhoProfissional || ""}
+              onChange={e => setForm({ ...form, conselhoProfissional: e.target.value })}
+            />
+          </div>
+
+          <div className="col-md-2">
+            <label>Número conselho</label>
+            <input
+              className="form-control"
+              value={form.numeroConselho || ""}
+              onChange={e => setForm({ ...form, numeroConselho: e.target.value })}
+            />
+          </div>
+
+          <div className="col-md-1">
+            <label>UF</label>
+            <input
+              className="form-control"
+              maxLength="2"
+              value={form.ufConselho || ""}
+              onChange={e => setForm({ ...form, ufConselho: e.target.value.toUpperCase() })}
+            />
+          </div>
+
           <div className="col-md-1">
             <label>Cor</label>
             <input
@@ -206,6 +238,7 @@ export default function Profissionais() {
               <th>Cor</th>
               <th>Nome</th>
               <th>Especialidade</th>
+              <th>Conselho</th>
               <th>Comissão</th>
               <th>Ações</th>
             </tr>
@@ -222,6 +255,7 @@ export default function Profissionais() {
                 </td>
                 <td>{x.nome}</td>
                 <td>{x.especialidade}</td>
+                <td>{[x.conselhoProfissional, x.numeroConselho, x.ufConselho].filter(Boolean).join(" / ")}</td>
                 <td>{x.percentualComissao}%</td>
                 <td className="actions">
                   <button

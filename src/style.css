@@ -552,6 +552,8 @@ body{background:radial-gradient(circle at top left,rgba(233,216,166,.28),transpa
 .pdv-total-card{border:2px solid rgba(201,169,93,.35);}
 .professional-table thead th{color:var(--primary);}
 .report-summary div{background:#fffaf2;border-color:var(--border);}
+.termo-anexo-input{max-width:190px}
+.fiscal-search{min-width:280px}
 
 .orcamento-print-area{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
 .orcamento-print-header{align-items:center;border-bottom:3px solid #5a1d32;padding-bottom:16px;margin-bottom:24px;gap:18px;}
@@ -570,3 +572,75 @@ body{background:radial-gradient(circle at top left,rgba(233,216,166,.28),transpa
 .orcamento-print-totais{border-color:#eadfd8;}
 .orcamento-print-total{background:#fff4c8;color:#5a1d32;}
 .orcamento-print-assinatura{border-top-color:#5a1d32;}
+
+.receita-print-area{
+  display:none;
+  background:white;
+  color:#111827;
+  padding:32px;
+  max-width:860px;
+  min-height:980px;
+  margin:0 auto;
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.receita-print-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  border-bottom:3px solid #5a1d32;
+  padding-bottom:18px;
+  margin-bottom:28px;
+}
+.receita-print-brand{display:flex;align-items:center;gap:14px}
+.receita-print-brand img{width:74px;height:74px;border-radius:18px;object-fit:cover;border:2px solid #e9d8a6}
+.receita-print-brand strong{display:block;font-size:20px;color:#5a1d32;text-transform:uppercase;letter-spacing:.04em}
+.receita-print-brand span{display:block;color:#7b6670;font-weight:700}
+.receita-print-title{text-align:right}
+.receita-print-title h1{margin:0;font-size:36px;font-weight:900;color:#5a1d32}
+.receita-print-title p{margin:4px 0 0;color:#7b6670;font-weight:700}
+.receita-print-info{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:26px}
+.receita-print-info div,.receita-print-section{border:1px solid #eadfd8;background:#fffdf9;border-radius:12px;padding:14px}
+.receita-print-info strong,.receita-print-info span{display:block}
+.receita-print-info strong,.receita-print-section strong{font-size:12px;color:#7a2d46;text-transform:uppercase;margin-bottom:6px}
+.receita-print-section{margin-bottom:18px;min-height:160px}
+.receita-print-section p{white-space:pre-wrap;margin:8px 0 0;line-height:1.65;font-size:16px}
+.receita-print-assinatura{margin-top:110px;width:360px;margin-left:auto;text-align:center;border-top:1px solid #5a1d32;padding-top:10px}
+.receita-print-assinatura span{display:block;font-weight:800;color:#5a1d32}
+.receita-print-assinatura small{display:block;color:#7b6670}
+.receita-itens-editor{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+.receita-item-editor{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fffdf9}
+.receita-item-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:var(--primary)}
+.receita-validation-box{border:1px dashed #5a1d32;background:#fffaf2;border-radius:12px;padding:12px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.receita-validation-box strong{color:#5a1d32;text-transform:uppercase;font-size:12px}
+.receita-validation-box span{font-weight:900;letter-spacing:.04em}
+.receita-validation-box small{color:#7b6670}
+.receita-print-brand small{display:block;color:#7b6670}
+.receita-print-item{border-bottom:1px solid #eadfd8;padding:12px 0}
+.receita-print-item:last-child{border-bottom:0}
+.receita-print-item h4{font-size:18px;color:#5a1d32;margin:0 0 6px}
+.receita-print-item p{margin:4px 0;white-space:pre-wrap;line-height:1.5}
+.receita-print-orientacoes{min-height:90px}
+.anamnese-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;background:#fffdf9;border:1px solid var(--border);border-radius:12px;padding:12px}
+.termo-print-area{display:none;background:white;color:#111827;padding:32px;max-width:860px;min-height:980px;margin:0 auto;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.termo-print-header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #5a1d32;padding-bottom:18px;margin-bottom:22px}
+.termo-print-header img{width:74px;height:74px;border-radius:18px;object-fit:cover;border:2px solid #e9d8a6}
+.termo-print-header h1{font-size:28px;color:#5a1d32;margin:0;font-weight:900}
+.termo-print-header p,.termo-print-header small{margin:3px 0;color:#7b6670}
+.termo-print-info{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+.termo-print-info div,.termo-print-area section{border:1px solid #eadfd8;background:#fffdf9;border-radius:12px;padding:14px}
+.termo-print-info strong{display:block;color:#7a2d46;text-transform:uppercase;font-size:12px;margin-bottom:4px}
+.termo-print-area section{margin-bottom:14px}
+.termo-print-area section p{white-space:pre-wrap;line-height:1.65;margin:8px 0 0}
+.termo-validation{border:1px dashed #5a1d32;background:#fffaf2;border-radius:12px;padding:12px;margin-top:20px}
+.termo-assinaturas{display:grid;grid-template-columns:1fr 1fr;gap:42px;margin-top:90px}
+.termo-assinaturas div{text-align:center;border-top:1px solid #5a1d32;padding-top:8px}
+.termo-assinaturas span{display:block;font-weight:800;color:#5a1d32}
+.termo-assinaturas small{display:block;color:#7b6670}
+
+@media print{
+  .receita-print-area{display:block!important}
+  .receita-print-area{break-after:page}
+  .receita-print-area:last-child{break-after:auto}
+  .termo-print-area{display:block!important}
+}

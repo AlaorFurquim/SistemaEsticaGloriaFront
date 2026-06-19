@@ -59,8 +59,8 @@ export default function ConfiguracaoNfse() {
   return (
     <div>
       <PageHeader
-        titulo="Configuração de NFS-e"
-        subtitulo="Configure a emissão de nota fiscal de serviço pela Nuvem Fiscal"
+        title="Configuração de NFS-e"
+        subtitle="Configure a emissão de nota fiscal de serviço pela ACBr API"
       />
 
       <form onSubmit={salvar} className="card shadow-sm border-0">

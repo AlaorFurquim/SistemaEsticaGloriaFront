@@ -20,6 +20,17 @@ import Prontuarios from "./pages/Prontuarios";
 import Orcamentos from "./pages/Orcamentos";
 import Aniversariantes from "./pages/Aniversariantes";
 import PdvTerminais from "./pages/PdvTerminais";
+import Receitas from "./pages/Receitas";
+import Anamneses from "./pages/Anamneses";
+import TermosConsentimento from "./pages/TermosConsentimento";
+import FotosEvolucao from "./pages/FotosEvolucao";
+import PlanosTratamento from "./pages/PlanosTratamento";
+import ConfiguracaoClinica from "./pages/ConfiguracaoClinica";
+import FinanceiroCompleto from "./pages/FinanceiroCompleto";
+import CrmLembretes from "./pages/CrmLembretes";
+import EstoqueLotes from "./pages/EstoqueLotes";
+import LgpdLogs from "./pages/LgpdLogs";
+import AlertasOperacionais from "./pages/AlertasOperacionais";
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -35,17 +46,68 @@ function SemPermissao() {
   );
 }
 
+function componenteValido(Componente) {
+  return typeof Componente === "function" || (typeof Componente === "object" && Componente !== null);
+}
+
+function paginaSegura(Componente, nome) {
+  if (componenteValido(Componente)) return Componente;
+
+  return function PaginaIndisponivel() {
+    return (
+      <div className="panel">
+        <h2>Tela indisponível</h2>
+        <p>O componente {nome} não foi carregado corretamente. Reinicie o frontend e tente novamente.</p>
+      </div>
+    );
+  };
+}
+
+const Pages = {
+  Login: paginaSegura(Login, "Login"),
+  Layout: paginaSegura(Layout, "Layout"),
+  Dashboard: paginaSegura(Dashboard, "Dashboard"),
+  Agenda: paginaSegura(Agenda, "Agenda"),
+  Pdv: paginaSegura(Pdv, "Pdv"),
+  Caixa: paginaSegura(Caixa, "Caixa"),
+  Clientes: paginaSegura(Clientes, "Clientes"),
+  Profissionais: paginaSegura(Profissionais, "Profissionais"),
+  Servicos: paginaSegura(Servicos, "Servicos"),
+  Atendimentos: paginaSegura(Atendimentos, "Atendimentos"),
+  Produtos: paginaSegura(Produtos, "Produtos"),
+  Estoque: paginaSegura(Estoque, "Estoque"),
+  NotasFiscais: paginaSegura(NotasFiscais, "NotasFiscais"),
+  Relatorios: paginaSegura(Relatorios, "Relatorios"),
+  Usuarios: paginaSegura(Usuarios, "Usuarios"),
+  ConfiguracaoNfse: paginaSegura(ConfiguracaoNfse, "ConfiguracaoNfse"),
+  Prontuarios: paginaSegura(Prontuarios, "Prontuarios"),
+  Orcamentos: paginaSegura(Orcamentos, "Orcamentos"),
+  Aniversariantes: paginaSegura(Aniversariantes, "Aniversariantes"),
+  PdvTerminais: paginaSegura(PdvTerminais, "PdvTerminais"),
+  Receitas: paginaSegura(Receitas, "Receitas"),
+  Anamneses: paginaSegura(Anamneses, "Anamneses"),
+  TermosConsentimento: paginaSegura(TermosConsentimento, "TermosConsentimento"),
+  FotosEvolucao: paginaSegura(FotosEvolucao, "FotosEvolucao"),
+  PlanosTratamento: paginaSegura(PlanosTratamento, "PlanosTratamento"),
+  ConfiguracaoClinica: paginaSegura(ConfiguracaoClinica, "ConfiguracaoClinica"),
+  FinanceiroCompleto: paginaSegura(FinanceiroCompleto, "FinanceiroCompleto"),
+  CrmLembretes: paginaSegura(CrmLembretes, "CrmLembretes"),
+  EstoqueLotes: paginaSegura(EstoqueLotes, "EstoqueLotes"),
+  LgpdLogs: paginaSegura(LgpdLogs, "LgpdLogs"),
+  AlertasOperacionais: paginaSegura(AlertasOperacionais, "AlertasOperacionais")
+};
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Pages.Login />} />
 
         <Route
           path="/"
           element={
             <ProtectedRoute>
-              <Layout />
+              <Pages.Layout />
             </ProtectedRoute>
           }
         >
@@ -53,7 +115,7 @@ export default function App() {
             index
             element={
               <ProtectedRoute roles={["Administrador", "Gerente"]}>
-                <Dashboard />
+                <Pages.Dashboard />
               </ProtectedRoute>
             }
           />
@@ -62,7 +124,7 @@ export default function App() {
             path="agenda"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
-                <Agenda />
+                <Pages.Agenda />
               </ProtectedRoute>
             }
           />
@@ -71,7 +133,7 @@ export default function App() {
             path="pdv"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}>
-                <Pdv />
+                <Pages.Pdv />
               </ProtectedRoute>
             }
           />
@@ -80,7 +142,7 @@ export default function App() {
             path="caixa"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}>
-                <Caixa />
+                <Pages.Caixa />
               </ProtectedRoute>
             }
           />
@@ -89,7 +151,7 @@ export default function App() {
             path="clientes"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}>
-                <Clientes />
+                <Pages.Clientes />
               </ProtectedRoute>
             }
           />
@@ -98,7 +160,7 @@ export default function App() {
             path="profissionais"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente"]}>
-                <Profissionais />
+                <Pages.Profissionais />
               </ProtectedRoute>
             }
           />
@@ -107,7 +169,7 @@ export default function App() {
             path="servicos"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente"]}>
-                <Servicos />
+                <Pages.Servicos />
               </ProtectedRoute>
             }
           />
@@ -116,7 +178,7 @@ export default function App() {
             path="prontuarios"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
-                <Prontuarios />
+                <Pages.Prontuarios />
               </ProtectedRoute>
             }
           />
@@ -125,16 +187,52 @@ export default function App() {
             path="orcamentos"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
-                <Orcamentos />
+                <Pages.Orcamentos />
               </ProtectedRoute>
             }
           />
 
           <Route
+            path="receitas"
+            element={
+              <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
+                <Pages.Receitas />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="anamneses"
+            element={
+              <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
+                <Pages.Anamneses />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="termos"
+            element={
+              <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
+                <Pages.TermosConsentimento />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="fotos-evolucao" element={<ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}><Pages.FotosEvolucao /></ProtectedRoute>} />
+          <Route path="planos-tratamento" element={<ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}><Pages.PlanosTratamento /></ProtectedRoute>} />
+          <Route path="crm" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.CrmLembretes /></ProtectedRoute>} />
+          <Route path="financeiro-completo" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.FinanceiroCompleto /></ProtectedRoute>} />
+          <Route path="estoque-lotes" element={<ProtectedRoute roles={["Administrador", "Gerente", "Estoque"]}><Pages.EstoqueLotes /></ProtectedRoute>} />
+          <Route path="configuracao-clinica" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.ConfiguracaoClinica /></ProtectedRoute>} />
+          <Route path="lgpd" element={<ProtectedRoute roles={["Administrador"]}><Pages.LgpdLogs /></ProtectedRoute>} />
+          <Route path="alertas" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.AlertasOperacionais /></ProtectedRoute>} />
+
+          <Route
             path="aniversariantes"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}>
-                <Aniversariantes />
+                <Pages.Aniversariantes />
               </ProtectedRoute>
             }
           />
@@ -143,7 +241,7 @@ export default function App() {
             path="atendimentos"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
-                <Atendimentos />
+                <Pages.Atendimentos />
               </ProtectedRoute>
             }
           />
@@ -152,7 +250,7 @@ export default function App() {
             path="produtos"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Estoque"]}>
-                <Produtos />
+                <Pages.Produtos />
               </ProtectedRoute>
             }
           />
@@ -161,7 +259,7 @@ export default function App() {
             path="estoque"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Estoque"]}>
-                <Estoque />
+                <Pages.Estoque />
               </ProtectedRoute>
             }
           />
@@ -170,7 +268,7 @@ export default function App() {
             path="notas-fiscais"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente"]}>
-                <NotasFiscais />
+                <Pages.NotasFiscais />
               </ProtectedRoute>
             }
           />
@@ -179,7 +277,7 @@ export default function App() {
             path="relatorios"
             element={
               <ProtectedRoute roles={["Administrador", "Gerente"]}>
-                <Relatorios />
+                <Pages.Relatorios />
               </ProtectedRoute>
             }
           />
@@ -188,13 +286,13 @@ export default function App() {
             path="usuarios"
             element={
               <ProtectedRoute roles={["Administrador"]}>
-                <Usuarios />
+                <Pages.Usuarios />
               </ProtectedRoute>
             }
           />
 
-          <Route path="/pdvs" element={<ProtectedRoute roles={["Administrador"]}><PdvTerminais /></ProtectedRoute>} />
-          <Route path="/configuracao-nfse" element={<ProtectedRoute><ConfiguracaoNfse /></ProtectedRoute>} />
+          <Route path="/pdvs" element={<ProtectedRoute roles={["Administrador"]}><Pages.PdvTerminais /></ProtectedRoute>} />
+          <Route path="/configuracao-nfse" element={<ProtectedRoute><Pages.ConfiguracaoNfse /></ProtectedRoute>} />
 
           <Route path="sem-permissao" element={<SemPermissao />} />
         </Route>
