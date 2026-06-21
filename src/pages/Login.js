@@ -10,6 +10,7 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [lembrarAcesso, setLembrarAcesso] = useState(!!emailLembrado);
+  const [entrando, setEntrando] = useState(false);
 
   function limparSessaoPreservandoEmail() {
     const emailSalvo = localStorage.getItem("loginEmail");
@@ -22,8 +23,10 @@ export default function Login() {
 
   async function entrar(e) {
     e.preventDefault();
+    if (entrando) return;
 
     try {
+      setEntrando(true);
       limparSessaoPreservandoEmail();
 
       const response = await api.post("/auth/login", {
@@ -60,6 +63,8 @@ export default function Login() {
         error.response?.data ||
           "E-mail ou senha inv\u00e1lidos. Verifique seus dados e tente novamente."
       );
+    } finally {
+      setEntrando(false);
     }
   }
 
@@ -92,6 +97,7 @@ export default function Login() {
           placeholder="seuemail@empresa.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          disabled={entrando}
           required
         />
 
@@ -103,6 +109,7 @@ export default function Login() {
             placeholder="Digite sua senha"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
+            disabled={entrando}
             required
           />
 
@@ -110,6 +117,7 @@ export default function Login() {
             type="button"
             className="password-toggle"
             onClick={() => setMostrarSenha((valor) => !valor)}
+            disabled={entrando}
             aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
           >
             {mostrarSenha ? "\uD83D\uDE48" : "\uD83D\uDC41\uFE0F"}
@@ -121,11 +129,15 @@ export default function Login() {
             type="checkbox"
             checked={lembrarAcesso}
             onChange={(e) => setLembrarAcesso(e.target.checked)}
+            disabled={entrando}
           />
           <span>Lembrar de mim</span>
         </label>
 
-        <button className="btn btn-primary w-100">Entrar</button>
+        <button className="btn btn-primary w-100 login-submit" disabled={entrando}>
+          {entrando && <span className="login-spinner" aria-hidden="true" />}
+          {entrando ? "Entrando..." : "Entrar"}
+        </button>
 
         <div className="login-footer">
           <small>&copy; {new Date().getFullYear()} Lap Beauty</small>

@@ -1720,3 +1720,7 @@ canvas {
     padding: 24px 16px 18px !important;
   }
 }
+.login-submit{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px}
+.login-submit:disabled{opacity:.82;cursor:not-allowed}
+.login-spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:login-spin .8s linear infinite;flex:0 0 auto}
+@keyframes login-spin{to{transform:rotate(360deg)}}
