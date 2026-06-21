@@ -142,12 +142,20 @@ export default function Receitas() {
     try {
       const res = await api.post(`/receitas/${receita.id}/registrar-impressao`);
       setReceitaImpressao(res.data);
-      setTimeout(() => window.print(), 150);
+      imprimirReceita();
       await carregar();
     } catch {
       setReceitaImpressao(receita);
-      setTimeout(() => window.print(), 150);
+      imprimirReceita();
     }
+  }
+
+  function imprimirReceita() {
+    document.body.classList.add("printing-receita");
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.body.classList.remove("printing-receita"), 500);
+    }, 150);
   }
 
   async function cancelarReceita(receita) {
@@ -178,6 +186,17 @@ export default function Receitas() {
     return [profissional?.conselhoProfissional, profissional?.numeroConselho, profissional?.ufConselho]
       .filter(Boolean)
       .join(" / ");
+  }
+
+  function nomeAssinatura(profissional) {
+    const nome = profissional?.nome || "Profissional responsavel";
+    return /^dr(a)?\.?\s/i.test(nome) ? nome : `Dra. ${nome}`;
+  }
+
+  function dataAssinatura(receita) {
+    const data = receita?.data ? new Date(receita.data) : new Date();
+    const local = [clinica?.cidade, clinica?.uf].filter(Boolean).join(" - ");
+    return `${local || "Data"}: ${data.toLocaleDateString("pt-BR")}`;
   }
 
   function viasParaImpressao(receita) {
@@ -354,13 +373,6 @@ export default function Receitas() {
               <p>{receitaImpressao.tipoReceita} - via {via}/{receitaImpressao.numeroVias || 1}</p>
             </div>
           </div>
-
-          <div className="receita-validation-box">
-            <strong>Código de validação</strong>
-            <span>{receitaImpressao.codigoValidacao}</span>
-            <small>Status: {receitaImpressao.status}</small>
-          </div>
-
           <div className="receita-print-info">
             <div><strong>Paciente</strong><span>{receitaImpressao.cliente?.nome}</span></div>
             <div><strong>CPF/documento</strong><span>{receitaImpressao.cliente?.documento || "Não informado"}</span></div>
@@ -368,6 +380,8 @@ export default function Receitas() {
             <div><strong>Telefone</strong><span>{receitaImpressao.cliente?.telefone || "Não informado"}</span></div>
             <div><strong>Emissão</strong><span>{formatarDataHora(receitaImpressao.data)}</span></div>
             <div><strong>Validade</strong><span>{receitaImpressao.validade ? new Date(receitaImpressao.validade).toLocaleDateString("pt-BR") : "Não informada"}</span></div>
+            <div><strong>Codigo</strong><span>{receitaImpressao.codigoValidacao}</span></div>
+            <div><strong>Status</strong><span>{receitaImpressao.status}</span></div>
           </div>
 
           <section className="receita-print-section">
@@ -393,7 +407,8 @@ export default function Receitas() {
           )}
 
           <div className="receita-print-assinatura">
-            <span>{receitaImpressao.profissional?.nome}</span>
+            <em>{dataAssinatura(receitaImpressao)}</em>
+            <span>{nomeAssinatura(receitaImpressao.profissional)}</span>
             <small>{textoConselho(receitaImpressao.profissional) || "Profissional responsável"}</small>
             <small>{receitaImpressao.profissional?.especialidade}</small>
           </div>

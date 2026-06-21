@@ -1,15 +1,12 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { format, getDay, parse, startOfWeek } from "date-fns";
 import ptBR from "date-fns/locale/pt-BR";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
-import {
-  alertaErro,
-  alertaInfo,
-  alertaSucesso
-} from "../utils/alerts";
-import { formatarDataHora } from "../utils/masks";
+import { alertaErro, alertaSucesso } from "../utils/alerts";
+import { formatarDataHora, mascaraTelefone } from "../utils/masks";
 
 const locales = { "pt-BR": ptBR };
 
@@ -22,14 +19,14 @@ const localizer = dateFnsLocalizer({
 });
 
 const inicial = {
+  modoCliente: "existente",
   clienteId: "",
+  nome: "",
+  telefone: "",
   servicoId: "",
-  profissionalId: "",
-  dataHora: "",
-  observacao: "",
-  tipoConsulta: "PrimeiraConsulta",
-  retorno: false,
-  atendimentoOrigemId: ""
+  dataAtendimento: "",
+  horarioAtendimento: "",
+  tipoAgendamento: "PrimeiroAtendimento"
 };
 
 function toInputDateTime(date) {
@@ -38,37 +35,101 @@ function toInputDateTime(date) {
   return d.toISOString().slice(0, 16);
 }
 
-function corPorTipo(tipoConsulta, retorno) {
+function toInputDate(date) {
+  return toInputDateTime(date).slice(0, 10);
+}
+
+function toInputTime(date) {
+  return toInputDateTime(date).slice(11, 16);
+}
+
+function atendimentoFinalizado(status) {
+  return status === "Concluido" || status === "Finalizado";
+}
+
+function normalizarProcedimento(nome) {
+  return String(nome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function corPorProcedimento(nome, id) {
+  const texto = normalizarProcedimento(nome);
+  const coresFixas = [
+    { termo: "preenchimento", cor: "#be185d" },
+    { termo: "limpeza de pele", cor: "#0891b2" },
+    { termo: "drenagem", cor: "#7c3aed" }
+  ];
+  const encontrada = coresFixas.find((item) => texto.includes(item.termo));
+
+  if (encontrada) return encontrada.cor;
+
+  const paleta = ["#2563eb", "#0f766e", "#b45309", "#9333ea", "#db2777", "#15803d", "#c2410c", "#4f46e5"];
+  const base = String(id || nome || "procedimento");
+  const indice = [...base].reduce((soma, char) => soma + char.charCodeAt(0), 0) % paleta.length;
+  return paleta[indice];
+}
+
+function corPorTipo(tipoConsulta, retorno, status, servico, servicoId) {
+  if (atendimentoFinalizado(status)) return "#16a34a";
   if (retorno || tipoConsulta === "Retorno") return "#f59e0b";
-  if (tipoConsulta === "PrimeiraConsulta" || tipoConsulta === "Primeira Consulta") return "#2563eb";
-  return "#16a34a";
+  return corPorProcedimento(servico, servicoId);
 }
 
 function textoTipo(tipoConsulta, retorno) {
   if (retorno || tipoConsulta === "Retorno") return "Retorno";
-  if (tipoConsulta === "PrimeiraConsulta" || tipoConsulta === "Primeira Consulta") return "Primeira consulta";
-  return "Consulta normal";
+  return "Primeiro atendimento";
+}
+
+function mesmaData(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function formatarHora(date) {
+  return date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function formatarDataLonga(date) {
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  });
 }
 
 export default function Agenda() {
+  const navigate = useNavigate();
   const [eventos, setEventos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
-  const [consultasAnteriores, setConsultasAnteriores] = useState([]);
-
   const [modalAberto, setModalAberto] = useState(false);
+  const [resumoAberto, setResumoAberto] = useState(false);
+  const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [cancelamentoAberto, setCancelamentoAberto] = useState(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState("");
+  const [slotSelecionado, setSlotSelecionado] = useState(new Date());
+  const [dataSelecionada, setDataSelecionada] = useState(new Date());
+  const [eventoSelecionado, setEventoSelecionado] = useState(null);
   const [form, setForm] = useState(inicial);
 
   async function carregar() {
     try {
-      const [agendaRes, clientesRes, servicosRes, profissionaisRes] =
-        await Promise.all([
-          api.get("/atendimentos/agenda"),
-          api.get("/clientes"),
-          api.get("/servicos"),
-          api.get("/profissionais")
-        ]);
+      const [agendaRes, clientesRes, servicosRes, profissionaisRes] = await Promise.all([
+        api.get("/atendimentos/agenda"),
+        api.get("/clientes"),
+        api.get("/servicos"),
+        api.get("/profissionais")
+      ]);
 
       setEventos(
         (agendaRes.data || [])
@@ -79,44 +140,29 @@ export default function Agenda() {
             start: new Date(x.start),
             end: new Date(x.end),
             resource: x,
-            cor: corPorTipo(x.tipoConsulta, x.retorno)
+            cor: corPorTipo(x.tipoConsulta, x.retorno, x.status, x.servico, x.servicoId)
           }))
       );
-
       setClientes(clientesRes.data || []);
       setServicos(servicosRes.data || []);
       setProfissionais(profissionaisRes.data || []);
     } catch (error) {
       alertaErro(
         error.response?.data ||
-          "Não foi possível carregar a agenda de atendimentos."
+          "N\u00e3o foi poss\u00edvel carregar a agenda de atendimentos."
       );
-    }
-  }
-
-  async function carregarConsultasAnteriores(clienteId) {
-    if (!clienteId) {
-      setConsultasAnteriores([]);
-      return;
-    }
-
-    try {
-      const res = await api.get(`/atendimentos/cliente/${clienteId}/anteriores`);
-      setConsultasAnteriores(res.data || []);
-    } catch {
-      setConsultasAnteriores([]);
-      alertaErro("Não foi possível carregar consultas anteriores.");
     }
   }
 
   function eventStyleGetter(event) {
     return {
       style: {
-        backgroundColor: event.cor,
+        backgroundColor: `${event.cor}1a`,
         borderRadius: "8px",
-        border: "none",
-        color: "#fff",
-        fontWeight: 600,
+        border: `1px solid ${event.cor}`,
+        borderLeft: `5px solid ${event.cor}`,
+        color: event.cor,
+        fontWeight: 800,
         opacity: 0.95,
         padding: "2px 4px"
       }
@@ -124,90 +170,180 @@ export default function Agenda() {
   }
 
   function abrirDetalhes(evento) {
-    const item = evento.resource;
-
-    alertaInfo(
-      "Detalhes do Atendimento",
-      `
-        <div style="text-align:left">
-          <p><strong>Cliente/Serviço:</strong> ${evento.title}</p>
-          <p><strong>Início:</strong> ${formatarDataHora(evento.start)}</p>
-          <p><strong>Fim:</strong> ${formatarDataHora(evento.end)}</p>
-          <p><strong>Status:</strong> ${item.status || "-"}</p>
-          <p><strong>Profissional:</strong> ${item.profissional || "-"}</p>
-          <p><strong>Tipo:</strong> ${textoTipo(item.tipoConsulta, item.retorno)}</p>
-          ${
-            item.consultaOrigem
-              ? `<p><strong>Consulta original:</strong> ${item.consultaOrigem}</p>`
-              : ""
-          }
-        </div>
-      `
-    );
+    setEventoSelecionado(evento);
+    setDataSelecionada(evento.start);
+    setDetalhesAberto(true);
   }
 
-  function abrirNovoAtendimento(slotInfo) {
+  function abrirResumoDoDia(slotInfo) {
+    setDataSelecionada(slotInfo.start);
+    setSlotSelecionado(slotInfo.start);
+    setResumoAberto(true);
+  }
+
+  function abrirNovoAgendamento(dataBase = slotSelecionado) {
     setForm({
       ...inicial,
-      dataHora: toInputDateTime(slotInfo.start)
+      servicoId: servicos[0]?.id ? String(servicos[0].id) : "",
+      dataAtendimento: toInputDate(dataBase),
+      horarioAtendimento: toInputTime(dataBase)
     });
 
-    setConsultasAnteriores([]);
+    setResumoAberto(false);
     setModalAberto(true);
   }
 
-  function fecharModal() {
+  function fecharAgendamento() {
     setModalAberto(false);
     setForm(inicial);
-    setConsultasAnteriores([]);
   }
 
-  function alterarTipoConsulta(tipoConsulta) {
-    setForm({
-      ...form,
-      tipoConsulta,
-      retorno: tipoConsulta === "Retorno",
-      atendimentoOrigemId:
-        tipoConsulta === "Retorno" ? form.atendimentoOrigemId : ""
+  async function salvarAgendamentoCompatibilidade(payload) {
+    let clienteId = payload.clienteId;
+
+    if (!clienteId) {
+      const existente = clientes.find((cliente) => {
+        const telefoneCliente = String(cliente.telefone || "").replace(/\D/g, "");
+        const telefonePayload = String(payload.telefone || "").replace(/\D/g, "");
+
+        return (
+          (telefonePayload && telefoneCliente === telefonePayload) ||
+          String(cliente.nome || "").trim().toLowerCase() === String(payload.nome || "").trim().toLowerCase()
+        );
+      });
+
+      if (existente) {
+        clienteId = existente.id;
+      } else {
+        const clienteRes = await api.post("/clientes", {
+          nome: payload.nome,
+          telefone: payload.telefone,
+          ativo: true
+        });
+
+        clienteId = clienteRes.data.id;
+      }
+    }
+
+    const servico = servicos.find((item) => String(item.id) === String(payload.servicoId)) || servicos[0];
+    const profissional = profissionais[0];
+
+    if (!servico) {
+      throw new Error("Cadastre pelo menos um serviço antes de agendar.");
+    }
+
+    await api.post("/atendimentos", {
+      clienteId: Number(clienteId),
+      servicoId: Number(servico.id),
+      profissionalId: profissional?.id ? Number(profissional.id) : null,
+      dataHora: payload.dataHora,
+      tipoConsulta: "PrimeiraConsulta",
+      retorno: false,
+      status: "Agendado",
+      valor: Number(servico.valor || 0),
+      desconto: 0
     });
   }
 
-  async function salvarAtendimento(e) {
+  async function salvarAgendamento(e) {
     e.preventDefault();
 
-    if (!form.clienteId || !form.servicoId || !form.profissionalId || !form.dataHora) {
-      alertaErro("Preencha cliente, serviço, profissional e data/hora.");
+    if (form.modoCliente === "existente" && !form.clienteId) {
+      alertaErro("Selecione o cliente ou habilite o cadastro de novo cliente.");
       return;
     }
 
-    if (form.tipoConsulta === "Retorno" && !form.atendimentoOrigemId) {
-      alertaErro("Para retorno, selecione a consulta original.");
+    if (form.modoCliente === "novo" && (!form.nome.trim() || !form.telefone.trim())) {
+      alertaErro("Preencha nome e telefone do novo cliente.");
+      return;
+    }
+
+    if (!form.dataAtendimento || !form.horarioAtendimento) {
+      alertaErro("Preencha data e horário.");
+      return;
+    }
+
+    if (!form.servicoId) {
+      alertaErro("Selecione o procedimento.");
       return;
     }
 
     try {
-      await api.post("/atendimentos", {
-        clienteId: Number(form.clienteId),
+      const payload = {
+        clienteId: form.modoCliente === "existente" ? Number(form.clienteId) : null,
+        nome: form.modoCliente === "novo" ? form.nome.trim() : "",
+        telefone: form.modoCliente === "novo" ? form.telefone.trim() : "",
         servicoId: Number(form.servicoId),
-        profissionalId: Number(form.profissionalId),
-        dataHora: form.dataHora,
-        observacao: form.observacao,
-        tipoConsulta: form.tipoConsulta,
-        retorno: form.tipoConsulta === "Retorno",
-        atendimentoOrigemId:
-          form.tipoConsulta === "Retorno"
-            ? Number(form.atendimentoOrigemId)
-            : null,
-        status: "Agendado"
-      });
+        dataHora: `${form.dataAtendimento}T${form.horarioAtendimento}`,
+        tipoAgendamento: form.tipoAgendamento
+      };
+
+      try {
+        await api.post("/atendimentos/agenda-rapida", payload);
+      } catch (error) {
+        if (error.response?.status !== 405) {
+          throw error;
+        }
+
+        if (payload.tipoAgendamento === "Retorno") {
+          throw new Error("Reinicie a API para usar agendamento rápido de retorno.");
+        }
+
+        await salvarAgendamentoCompatibilidade(payload);
+      }
 
       await alertaSucesso("Atendimento agendado com sucesso.");
-      fecharModal();
+      fecharAgendamento();
+      await carregar();
+    } catch (error) {
+      alertaErro(error.response?.data || error.message || "N\u00e3o foi poss\u00edvel agendar o atendimento.");
+    }
+  }
+
+  async function iniciarAtendimento() {
+    if (!eventoSelecionado) return;
+
+    try {
+      try {
+        await api.put(`/atendimentos/${eventoSelecionado.id}/iniciar`);
+      } catch (error) {
+        if (error.response?.status !== 405 && error.response?.status !== 404) {
+          throw error;
+        }
+      }
+
+      setDetalhesAberto(false);
+      navigate(`/atendimentos/${eventoSelecionado.id}/iniciar`);
+    } catch (error) {
+      alertaErro(
+        error.response?.data ||
+          "N\u00e3o foi poss\u00edvel iniciar o atendimento."
+      );
+    }
+  }
+
+  async function confirmarCancelamento(e) {
+    e.preventDefault();
+
+    if (!eventoSelecionado || !motivoCancelamento.trim()) {
+      alertaErro("Informe o motivo do cancelamento.");
+      return;
+    }
+
+    try {
+      await api.put(`/atendimentos/${eventoSelecionado.id}/cancelar`, {
+        motivo: motivoCancelamento.trim()
+      });
+
+      await alertaSucesso("Atendimento cancelado.");
+      setCancelamentoAberto(false);
+      setDetalhesAberto(false);
+      setMotivoCancelamento("");
       await carregar();
     } catch (error) {
       alertaErro(
         error.response?.data ||
-          "Não foi possível agendar o atendimento."
+          "N\u00e3o foi poss\u00edvel cancelar o atendimento."
       );
     }
   }
@@ -216,11 +352,18 @@ export default function Agenda() {
     carregar();
   }, []);
 
+  const atendimentosDoDia = eventos
+    .filter((evento) => mesmaData(evento.start, dataSelecionada))
+    .sort((a, b) => a.start - b.start);
+
+  const itemDetalhe = eventoSelecionado?.resource;
+  const detalheFinalizado = atendimentoFinalizado(itemDetalhe?.status);
+
   return (
     <div>
       <PageHeader
         title="Agenda Visual"
-        subtitle="Clique em uma data ou horário para agendar um atendimento"
+        subtitle="Clique em uma data ou horário para ver o resumo e agendar"
       />
 
       <div className="panel agenda-panel">
@@ -232,219 +375,351 @@ export default function Agenda() {
           culture="pt-BR"
           style={{ height: 650 }}
           selectable
-          onSelectSlot={abrirNovoAtendimento}
+          onSelectSlot={abrirResumoDoDia}
           onSelectEvent={abrirDetalhes}
           eventPropGetter={eventStyleGetter}
           messages={{
-            next: "Próximo",
+            next: "Pr\u00f3ximo",
             previous: "Anterior",
             today: "Hoje",
-            month: "Mês",
+            month: "M\u00eas",
             week: "Semana",
             day: "Dia",
             agenda: "Lista",
             date: "Data",
             time: "Horário",
             event: "Evento",
-            noEventsInRange: "Nenhum atendimento neste período"
+            noEventsInRange: "Nenhum atendimento neste per\u00edodo"
           }}
         />
 
         <div className="d-flex gap-3 mt-3 flex-wrap">
-          <span>
-            <span style={{ width: 14, height: 14, background: "#2563eb", display: "inline-block", borderRadius: 4, marginRight: 6 }} />
-            Primeira consulta
-          </span>
-
-          <span>
-            <span style={{ width: 14, height: 14, background: "#16a34a", display: "inline-block", borderRadius: 4, marginRight: 6 }} />
-            Consulta normal
-          </span>
+          {servicos.map((servico) => (
+            <span key={servico.id}>
+              <span style={{ width: 14, height: 14, background: corPorProcedimento(servico.nome, servico.id), display: "inline-block", borderRadius: 4, marginRight: 6 }} />
+              {servico.nome}
+            </span>
+          ))}
 
           <span>
             <span style={{ width: 14, height: 14, background: "#f59e0b", display: "inline-block", borderRadius: 4, marginRight: 6 }} />
             Retorno
           </span>
+
+          <span>
+            <span style={{ width: 14, height: 14, background: "#16a34a", display: "inline-block", borderRadius: 4, marginRight: 6 }} />
+            Finalizado
+          </span>
         </div>
       </div>
 
-      {modalAberto && (
-        <div
-          className="modal fade show"
-          style={{
-            display: "block",
-            background: "rgba(0,0,0,0.55)"
-          }}
-        >
-          <div className="modal-dialog modal-lg modal-dialog-centered">
-            <div className="modal-content">
-              <form onSubmit={salvarAtendimento}>
-                <div className="modal-header">
-                  <h5 className="modal-title">Novo atendimento</h5>
+      {resumoAberto && (
+        <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,0.45)" }}>
+          <div className="modal-dialog modal-md modal-dialog-centered">
+            <div className="modal-content agenda-day-modal">
+              <div className="modal-header">
+                <div>
+                  <span className="agenda-day-kicker">Resumo do dia</span>
+                  <h5 className="modal-title">{formatarDataLonga(dataSelecionada)}</h5>
+                </div>
 
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={fecharModal}
-                  />
+                <button type="button" className="btn-close" onClick={() => setResumoAberto(false)} />
+              </div>
+
+              <div className="modal-body">
+                <div className="agenda-day-count">
+                  {atendimentosDoDia.length} atendimento(s)
+                </div>
+
+                {atendimentosDoDia.length > 0 ? (
+                  <div className="agenda-day-list">
+                    {atendimentosDoDia.map((evento) => (
+                      <button
+                        type="button"
+                        className="agenda-day-item"
+                        key={evento.id}
+                        onClick={() => {
+                          setResumoAberto(false);
+                          abrirDetalhes(evento);
+                        }}
+                      >
+                        <span className="agenda-day-time">
+                          {formatarHora(evento.start)}
+                          {" - "}
+                          {formatarHora(evento.end)}
+                        </span>
+
+                        <span className="agenda-day-info">
+                          <strong>{evento.title}</strong>
+                          <small>
+                            {evento.resource?.profissional || "Profissional não informado"}
+                            {" • "}
+                            {textoTipo(evento.resource?.tipoConsulta, evento.resource?.retorno)}
+                          </small>
+                        </span>
+
+                        <span className="agenda-day-status" style={{ backgroundColor: evento.cor }}>
+                          {evento.resource?.status || "Agendado"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="agenda-day-empty">
+                    Nenhum atendimento agendado para este dia.
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={() => setResumoAberto(false)}>
+                  Fechar
+                </button>
+
+                <button type="button" className="btn btn-primary" onClick={() => abrirNovoAgendamento(slotSelecionado)}>
+                  Novo atendimento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalAberto && (
+        <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,0.55)" }}>
+          <div className="modal-dialog modal-md modal-dialog-centered">
+            <div className="modal-content">
+              <form onSubmit={salvarAgendamento}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Novo agendamento</h5>
+                  <button type="button" className="btn-close" onClick={fecharAgendamento} />
                 </div>
 
                 <div className="modal-body">
                   <div className="row g-3">
-                    <div className="col-md-6">
+                    <div className="col-md-12">
                       <label>Cliente</label>
                       <select
                         className="form-select"
-                        value={form.clienteId}
-                        onChange={async (e) => {
-                          const cliente = e.target.value;
-
+                        value={form.modoCliente}
+                        onChange={(e) =>
                           setForm({
                             ...form,
-                            clienteId: cliente,
-                            atendimentoOrigemId: ""
-                          });
-
-                          await carregarConsultasAnteriores(cliente);
-                        }}
-                        required
-                      >
-                        <option value="">Selecione</option>
-                        {clientes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-md-6">
-                      <label>Serviço</label>
-                      <select
-                        className="form-select"
-                        value={form.servicoId}
-                        onChange={(e) =>
-                          setForm({ ...form, servicoId: e.target.value })
+                            modoCliente: e.target.value,
+                            clienteId: "",
+                            nome: "",
+                            telefone: ""
+                          })
                         }
-                        required
                       >
-                        <option value="">Selecione</option>
-                        {servicos.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.nome}
-                          </option>
-                        ))}
+                        <option value="existente">Pesquisar/selecionar cliente cadastrado</option>
+                        <option value="novo">Cadastrar novo cliente</option>
                       </select>
                     </div>
 
-                    <div className="col-md-6">
-                      <label>Profissional</label>
-                      <select
-                        className="form-select"
-                        value={form.profissionalId}
-                        onChange={(e) =>
-                          setForm({ ...form, profissionalId: e.target.value })
-                        }
-                        required
-                      >
-                        <option value="">Selecione</option>
-                        {profissionais.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-md-3">
-                      <label>Data e hora</label>
-                      <input
-                        type="datetime-local"
-                        className="form-control"
-                        value={form.dataHora}
-                        onChange={(e) =>
-                          setForm({ ...form, dataHora: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="col-md-3">
-                      <label>Tipo de consulta</label>
-                      <select
-                        className="form-select"
-                        value={form.tipoConsulta}
-                        onChange={(e) => alterarTipoConsulta(e.target.value)}
-                      >
-                        <option value="PrimeiraConsulta">Primeira consulta</option>
-                        <option value="ConsultaNormal">Consulta normal</option>
-                        <option value="Retorno">Retorno</option>
-                      </select>
-                    </div>
-
-                    {form.tipoConsulta === "Retorno" && (
+                    {form.modoCliente === "existente" ? (
                       <div className="col-md-12">
-                        <label>Consulta original</label>
+                        <label>Pesquisar cliente</label>
                         <select
                           className="form-select"
-                          value={form.atendimentoOrigemId}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              atendimentoOrigemId: e.target.value
-                            })
-                          }
+                          value={form.clienteId}
+                          onChange={(e) => setForm({ ...form, clienteId: e.target.value })}
                           required
                         >
-                          <option value="">Selecione a consulta original</option>
-
-                          {consultasAnteriores.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {new Date(c.dataHora).toLocaleString("pt-BR")}
-                              {" - "}
-                              {c.servico || "Serviço"}
-                              {" - "}
-                              {c.profissional || "Profissional"}
-                              {" - "}
-                              {c.status}
+                          <option value="">Selecione o cliente</option>
+                          {clientes.map((cliente) => (
+                            <option key={cliente.id} value={cliente.id}>
+                              {cliente.nome}
+                              {cliente.telefone ? ` - ${cliente.telefone}` : ""}
                             </option>
                           ))}
                         </select>
-
-                        {!consultasAnteriores.length && (
-                          <small className="text-danger">
-                            Este cliente ainda não possui consulta concluída para vincular retorno.
-                          </small>
-                        )}
                       </div>
+                    ) : (
+                      <>
+                        <div className="col-md-7">
+                          <label>Nome do paciente</label>
+                          <input
+                            className="form-control"
+                            value={form.nome}
+                            onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div className="col-md-5">
+                          <label>Telefone</label>
+                          <input
+                            className="form-control"
+                            value={form.telefone}
+                            onChange={(e) => setForm({ ...form, telefone: mascaraTelefone(e.target.value) })}
+                            required
+                          />
+                        </div>
+                      </>
                     )}
 
                     <div className="col-md-12">
-                      <label>Observação</label>
-                      <textarea
+                      <label>Procedimento</label>
+                      <select
+                        className="form-select"
+                        value={form.servicoId}
+                        onChange={(e) => setForm({ ...form, servicoId: e.target.value })}
+                        required
+                      >
+                        <option value="">Selecione o procedimento</option>
+                        {servicos.map((servico) => (
+                          <option key={servico.id} value={servico.id}>
+                            {servico.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-md-6">
+                      <label>Data do atendimento</label>
+                      <input
+                        type="date"
                         className="form-control"
-                        rows="3"
-                        value={form.observacao}
-                        onChange={(e) =>
-                          setForm({ ...form, observacao: e.target.value })
-                        }
-                        placeholder="Observações do atendimento"
+                        value={form.dataAtendimento}
+                        onChange={(e) => setForm({ ...form, dataAtendimento: e.target.value })}
+                        required
                       />
+                    </div>
+
+                    <div className="col-md-6">
+                      <label>Horário</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={form.horarioAtendimento}
+                        onChange={(e) => setForm({ ...form, horarioAtendimento: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="col-md-12">
+                      <label>Tipo de agendamento</label>
+                      <select
+                        className="form-select"
+                        value={form.tipoAgendamento}
+                        onChange={(e) => setForm({ ...form, tipoAgendamento: e.target.value })}
+                      >
+                        <option value="PrimeiroAtendimento">Primeiro atendimento</option>
+                        <option value="Retorno">Retorno</option>
+                      </select>
                     </div>
                   </div>
                 </div>
 
                 <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-light"
-                    onClick={fecharModal}
-                  >
+                  <button type="button" className="btn btn-light" onClick={fecharAgendamento}>
                     Cancelar
                   </button>
 
                   <button type="submit" className="btn btn-primary">
-                    Agendar atendimento
+                    Agendar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detalhesAberto && eventoSelecionado && (
+        <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,0.55)" }}>
+          <div className="modal-dialog modal-md modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Detalhes do atendimento</h5>
+                <button type="button" className="btn-close" onClick={() => setDetalhesAberto(false)} />
+              </div>
+
+              <div className="modal-body">
+                <div className="agenda-detail-list">
+                  <div>
+                    <span>Paciente / serviço</span>
+                    <strong>{eventoSelecionado.title}</strong>
+                  </div>
+                  <div>
+                    <span>Início</span>
+                    <strong>{formatarDataHora(eventoSelecionado.start)}</strong>
+                  </div>
+                  <div>
+                    <span>Fim</span>
+                    <strong>{formatarDataHora(eventoSelecionado.end)}</strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong>{itemDetalhe?.status || "-"}</strong>
+                  </div>
+                  <div>
+                    <span>Profissional</span>
+                    <strong>{itemDetalhe?.profissional || "-"}</strong>
+                  </div>
+                  <div>
+                    <span>Tipo</span>
+                    <strong>{textoTipo(itemDetalhe?.tipoConsulta, itemDetalhe?.retorno)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer agenda-detail-actions">
+                <button type="button" className="btn btn-outline-secondary" onClick={() => setDetalhesAberto(false)}>
+                  Ok
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  disabled={detalheFinalizado}
+                  onClick={() => {
+                    setMotivoCancelamento("");
+                    setCancelamentoAberto(true);
+                  }}
+                >
+                  Cancelamento
+                </button>
+
+                <button type="button" className="btn btn-primary" onClick={iniciarAtendimento} disabled={detalheFinalizado}>
+                  Iniciar atendimento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelamentoAberto && (
+        <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,0.62)" }}>
+          <div className="modal-dialog modal-sm modal-dialog-centered">
+            <div className="modal-content">
+              <form onSubmit={confirmarCancelamento}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Motivo do cancelamento</h5>
+                  <button type="button" className="btn-close" onClick={() => setCancelamentoAberto(false)} />
+                </div>
+
+                <div className="modal-body">
+                  <label>Motivo</label>
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    value={motivoCancelamento}
+                    onChange={(e) => setMotivoCancelamento(e.target.value)}
+                    placeholder="Ex.: paciente desmarcou, conflito de horário..."
+                    required
+                  />
+                </div>
+
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-light" onClick={() => setCancelamentoAberto(false)}>
+                    Voltar
+                  </button>
+
+                  <button type="submit" className="btn btn-danger">
+                    Confirmar cancelamento
                   </button>
                 </div>
               </form>
@@ -455,3 +730,4 @@ export default function Agenda() {
     </div>
   );
 }
+

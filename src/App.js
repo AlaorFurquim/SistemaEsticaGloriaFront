@@ -9,6 +9,8 @@ import Clientes from "./pages/Clientes";
 import Profissionais from "./pages/Profissionais";
 import Servicos from "./pages/Servicos";
 import Atendimentos from "./pages/Atendimentos";
+import AtendimentoFluxo from "./pages/AtendimentoFluxo";
+import AceiteTermoPublico from "./pages/AceiteTermoPublico";
 import Produtos from "./pages/Produtos";
 import Estoque from "./pages/Estoque";
 import NotasFiscais from "./pages/NotasFiscais";
@@ -74,6 +76,8 @@ const Pages = {
   Profissionais: paginaSegura(Profissionais, "Profissionais"),
   Servicos: paginaSegura(Servicos, "Servicos"),
   Atendimentos: paginaSegura(Atendimentos, "Atendimentos"),
+  AtendimentoFluxo: paginaSegura(AtendimentoFluxo, "AtendimentoFluxo"),
+  AceiteTermoPublico: paginaSegura(AceiteTermoPublico, "AceiteTermoPublico"),
   Produtos: paginaSegura(Produtos, "Produtos"),
   Estoque: paginaSegura(Estoque, "Estoque"),
   NotasFiscais: paginaSegura(NotasFiscais, "NotasFiscais"),
@@ -102,6 +106,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Pages.Login />} />
+        <Route path="/aceite/:token" element={<Pages.AceiteTermoPublico />} />
 
         <Route
           path="/"
@@ -242,6 +247,15 @@ export default function App() {
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
                 <Pages.Atendimentos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="atendimentos/:id/iniciar"
+            element={
+              <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
+                <Pages.AtendimentoFluxo />
               </ProtectedRoute>
             }
           />

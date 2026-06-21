@@ -63,7 +63,11 @@ export default function Orcamentos() {
     }
 
     const quantidade = Number(item.quantidade || 1);
-    const valor = Number(selecionado.valor || 0);
+    const usaMl = selecionado.tipo === "SERVICO" && selecionado.controlaMl;
+    const valor = Number(usaMl ? selecionado.valorPorMl : selecionado.valor || 0);
+    const descricao = usaMl
+      ? `${selecionado.nome}${selecionado.areaAplicacao ? ` - ${selecionado.areaAplicacao}` : ""} (${quantidade} ml)`
+      : selecionado.nome;
 
     setItens([
       ...itens,
@@ -71,7 +75,7 @@ export default function Orcamentos() {
         produtoId: selecionado.tipo === "PRODUTO" ? selecionado.id : null,
         servicoId: selecionado.tipo === "SERVICO" ? selecionado.id : null,
         tipo: selecionado.tipo,
-        descricao: selecionado.nome,
+        descricao,
         quantidade,
         valorUnitario: valor,
         total: quantidade * valor
@@ -250,14 +254,14 @@ export default function Orcamentos() {
                 <option value="">Selecione...</option>
                 {opcoesItens.map(x => (
                   <option key={`${x.tipo}-${x.id}`} value={`${x.tipo}-${x.id}`}>
-                    {x.tipo === "PRODUTO" ? "Produto" : "Serviço"} - {x.nome} - {formatarMoeda(x.valor)}
+                    {x.tipo === "PRODUTO" ? "Produto" : "Serviço"} - {x.nome}{x.areaAplicacao ? ` / ${x.areaAplicacao}` : ""} - {formatarMoeda(x.controlaMl ? x.valorPorMl : x.valor)}{x.controlaMl ? " por ml" : ""}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="col-md-2">
-              <label>Quantidade</label>
+              <label>Quantidade / ml</label>
               <input
                 type="number"
                 step="0.001"

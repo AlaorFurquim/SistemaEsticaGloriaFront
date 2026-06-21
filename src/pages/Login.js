@@ -1,25 +1,30 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import {
-  alertaErro,
-  alertaSucesso,
-  loading,
-  fecharLoading
-} from "../utils/alerts";
+import { alertaErro } from "../utils/alerts";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const emailLembrado = localStorage.getItem("loginEmail") || "";
+  const [email, setEmail] = useState(emailLembrado);
   const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [lembrarAcesso, setLembrarAcesso] = useState(!!emailLembrado);
+
+  function limparSessaoPreservandoEmail() {
+    const emailSalvo = localStorage.getItem("loginEmail");
+    localStorage.clear();
+
+    if (emailSalvo) {
+      localStorage.setItem("loginEmail", emailSalvo);
+    }
+  }
 
   async function entrar(e) {
     e.preventDefault();
 
     try {
-    
-
-      localStorage.clear();
+      limparSessaoPreservandoEmail();
 
       const response = await api.post("/auth/login", {
         email,
@@ -33,6 +38,12 @@ export default function Login() {
       localStorage.setItem("email", response.data.email);
       localStorage.setItem("perfil", perfil);
 
+      if (lembrarAcesso) {
+        localStorage.setItem("loginEmail", email);
+      } else {
+        localStorage.removeItem("loginEmail");
+      }
+
       if (perfil === "Administrador" || perfil === "Gerente") {
         navigate("/");
       } else if (perfil === "Atendente") {
@@ -45,11 +56,9 @@ export default function Login() {
         navigate("/");
       }
     } catch (error) {
-     
-
       alertaErro(
         error.response?.data ||
-          "E-mail ou senha inválidos. Verifique seus dados e tente novamente."
+          "E-mail ou senha inv\u00e1lidos. Verifique seus dados e tente novamente."
       );
     }
   }
@@ -58,27 +67,23 @@ export default function Login() {
     <div className="login-page">
       <div className="login-left">
         <div className="login-overlay">
-          <span>Glória Couto</span>
+          <span>Gl&oacute;ria Couto</span>
 
-          <h1>
-            Gestão completa para o seu negócio.
-          </h1>
+          <h1>Gest&atilde;o completa para o seu neg&oacute;cio.</h1>
 
           <p>
-            Controle agenda, atendimentos, PDV, estoque, caixa, comissões,
-            clientes e relatórios em uma única plataforma profissional.
+            Controle agenda, atendimentos, PDV, estoque, caixa, comiss&otilde;es,
+            clientes e relat&oacute;rios em uma &uacute;nica plataforma profissional.
           </p>
         </div>
       </div>
 
       <form className="login-card" onSubmit={entrar}>
-        <img className="login-logo-img" src="/logo-gloria.jpeg" alt="Glória Couto" />
+        <img className="login-logo-img" src="/logo-gloria.jpeg" alt="Gloria Couto" />
 
         <h2>Acesse sua conta</h2>
 
-        <p>
-          Entre com seu e-mail e senha para gerenciar a clínica.
-        </p>
+        <p>Entre com seu e-mail e senha para gerenciar a cl&iacute;nica.</p>
 
         <label>E-mail</label>
         <input
@@ -86,28 +91,44 @@ export default function Login() {
           className="form-control mb-3"
           placeholder="seuemail@empresa.com"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
 
         <label>Senha</label>
-        <input
-          type="password"
-          className="form-control mb-3"
-          placeholder="Digite sua senha"
-          value={senha}
-          onChange={e => setSenha(e.target.value)}
-          required
-        />
+        <div className="password-field mb-3">
+          <input
+            type={mostrarSenha ? "text" : "password"}
+            className="form-control"
+            placeholder="Digite sua senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            required
+          />
 
-        <button className="btn btn-primary w-100">
-          Entrar
-        </button>
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setMostrarSenha((valor) => !valor)}
+            aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+          >
+            {mostrarSenha ? "\uD83D\uDE48" : "\uD83D\uDC41\uFE0F"}
+          </button>
+        </div>
+
+        <label className="remember-login">
+          <input
+            type="checkbox"
+            checked={lembrarAcesso}
+            onChange={(e) => setLembrarAcesso(e.target.checked)}
+          />
+          <span>Lembrar de mim</span>
+        </label>
+
+        <button className="btn btn-primary w-100">Entrar</button>
 
         <div className="login-footer">
-          <small>
-            © {new Date().getFullYear()} Lap Beauty
-          </small>
+          <small>&copy; {new Date().getFullYear()} Lap Beauty</small>
         </div>
       </form>
     </div>

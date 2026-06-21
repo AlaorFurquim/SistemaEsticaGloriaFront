@@ -154,7 +154,7 @@ export default function Produtos() {
     <div>
       <PageHeader
         title="Produtos"
-        subtitle="Cadastro de produtos, estoque e dados tributários"
+        subtitle="Cadastro de produtos, estoque e dados tributários opcionais"
       />
 
       <form className="panel mb-3" onSubmit={salvar}>
@@ -261,7 +261,6 @@ export default function Produtos() {
               value={form.ncm}
               onChange={(e) => setForm({ ...form, ncm: e.target.value })}
               placeholder="Ex: 33051000"
-              required
             />
           </div>
 
@@ -271,7 +270,6 @@ export default function Produtos() {
               className="form-control"
               value={form.cfop}
               onChange={(e) => setForm({ ...form, cfop: e.target.value })}
-              required
             />
           </div>
 
@@ -284,7 +282,6 @@ export default function Produtos() {
                 setForm({ ...form, unidadeComercial: e.target.value })
               }
               placeholder="UN"
-              required
             />
           </div>
 

@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
-function MenuLink({ to, icon, children }) {
+function MenuLink({ to, icon, children, onNavigate }) {
   const location = useLocation();
   const active = location.pathname === to;
 
   return (
-    <Link className={`submenu-link ${active ? "active" : ""}`} to={to}>
+    <Link className={`submenu-link ${active ? "active" : ""}`} to={to} onClick={onNavigate}>
       <span className="menu-icon">{icon}</span>
       <span>{children}</span>
     </Link>
@@ -29,20 +29,18 @@ function MenuGroup({ id, title, icon, aberto, onToggle, children }) {
         <span className="menu-arrow">{aberto ? "▾" : "▸"}</span>
       </button>
 
-      {aberto && (
-        <div className="submenu">
-          {children}
-        </div>
-      )}
+      {aberto && <div className="submenu">{children}</div>}
     </div>
   );
 }
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const nome = localStorage.getItem("nome");
   const perfil = localStorage.getItem("perfil");
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
 
   const [menusAbertos, setMenusAbertos] = useState({
     atendimento: true,
@@ -55,17 +53,26 @@ export default function Layout() {
   });
 
   function toggleMenu(menu) {
-    setMenusAbertos(prev => ({
+    setMenusAbertos((prev) => ({
       ...prev,
       [menu]: !prev[menu]
     }));
   }
 
   function sair() {
+    const emailLembrado = localStorage.getItem("loginEmail");
     localStorage.clear();
+    if (emailLembrado) {
+      localStorage.setItem("loginEmail", emailLembrado);
+    }
     navigate("/login");
   }
 
+  useEffect(() => {
+    setMenuMobileAberto(false);
+  }, [location.pathname]);
+
+  const fecharMenuMobile = () => setMenuMobileAberto(false);
   const isAdmin = perfil === "Administrador";
   const isGerente = perfil === "Gerente";
   const isAtendente = perfil === "Atendente";
@@ -74,7 +81,44 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <div className="mobile-topbar">
+        <button
+          type="button"
+          className="mobile-menu-button"
+          onClick={() => setMenuMobileAberto(true)}
+          aria-label="Abrir menu"
+        >
+          ☰
+        </button>
+
+        <div className="mobile-brand">
+          <img className="mobile-brand-logo" src="/logo-gloria.jpeg" alt="Glória Couto" />
+          <div>
+            <strong>Glória Couto</strong>
+            <span>Estética Avançada</span>
+          </div>
+        </div>
+      </div>
+
+      {menuMobileAberto && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Fechar menu"
+          onClick={fecharMenuMobile}
+        />
+      )}
+
+      <aside className={`sidebar ${menuMobileAberto ? "open" : ""}`}>
+        <button
+          type="button"
+          className="sidebar-close"
+          onClick={fecharMenuMobile}
+          aria-label="Fechar menu"
+        >
+          ×
+        </button>
+
         <div className="brand">
           <img className="brand-logo" src="/logo-gloria.jpeg" alt="Glória Couto" />
           <div>
@@ -90,7 +134,7 @@ export default function Layout() {
 
         <nav className="main-menu">
           {(isAdmin || isGerente) && (
-            <MenuLink to="/" icon="📊">
+            <MenuLink to="/" icon="📊" onNavigate={fecharMenuMobile}>
               Dashboard
             </MenuLink>
           )}
@@ -103,15 +147,15 @@ export default function Layout() {
               aberto={menusAbertos.atendimento}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/agenda" icon="📅">Agenda</MenuLink>
-              <MenuLink to="/atendimentos" icon="📝">Atendimentos</MenuLink>
-              <MenuLink to="/anamneses" icon="📋">Anamnese</MenuLink>
-              <MenuLink to="/prontuarios" icon="📋">Prontuários</MenuLink>
-              <MenuLink to="/termos" icon="📄">Termos</MenuLink>
-              <MenuLink to="/fotos-evolucao" icon="🖼️">Fotos</MenuLink>
-              <MenuLink to="/planos-tratamento" icon="🗂️">Planos</MenuLink>
-              <MenuLink to="/receitas" icon="🧾">Receitas</MenuLink>
-              <MenuLink to="/orcamentos" icon="💰">Orçamentos</MenuLink>
+              <MenuLink to="/agenda" icon="📅" onNavigate={fecharMenuMobile}>Agenda</MenuLink>
+              <MenuLink to="/atendimentos" icon="📝" onNavigate={fecharMenuMobile}>Atendimentos</MenuLink>
+              <MenuLink to="/anamneses" icon="📋" onNavigate={fecharMenuMobile}>Anamnese</MenuLink>
+              <MenuLink to="/prontuarios" icon="📋" onNavigate={fecharMenuMobile}>Prontuários</MenuLink>
+              <MenuLink to="/termos" icon="📄" onNavigate={fecharMenuMobile}>Termos</MenuLink>
+              <MenuLink to="/fotos-evolucao" icon="🖼️" onNavigate={fecharMenuMobile}>Fotos</MenuLink>
+              <MenuLink to="/planos-tratamento" icon="🗂️" onNavigate={fecharMenuMobile}>Planos</MenuLink>
+              <MenuLink to="/receitas" icon="🧾" onNavigate={fecharMenuMobile}>Receitas</MenuLink>
+              <MenuLink to="/orcamentos" icon="💰" onNavigate={fecharMenuMobile}>Orçamentos</MenuLink>
             </MenuGroup>
           )}
 
@@ -123,8 +167,8 @@ export default function Layout() {
               aberto={menusAbertos.clientes}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/clientes" icon="👤">Cadastro de Clientes</MenuLink>
-              <MenuLink to="/aniversariantes" icon="🎂">Aniversariantes</MenuLink>
+              <MenuLink to="/clientes" icon="👤" onNavigate={fecharMenuMobile}>Cadastro de Clientes</MenuLink>
+              <MenuLink to="/aniversariantes" icon="🎂" onNavigate={fecharMenuMobile}>Aniversariantes</MenuLink>
             </MenuGroup>
           )}
 
@@ -136,8 +180,8 @@ export default function Layout() {
               aberto={menusAbertos.vendas}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/pdv" icon="🧾">PDV</MenuLink>
-              <MenuLink to="/caixa" icon="💵">Caixa</MenuLink>
+              <MenuLink to="/pdv" icon="🧾" onNavigate={fecharMenuMobile}>PDV</MenuLink>
+              <MenuLink to="/caixa" icon="💵" onNavigate={fecharMenuMobile}>Caixa</MenuLink>
             </MenuGroup>
           )}
 
@@ -149,9 +193,9 @@ export default function Layout() {
               aberto={menusAbertos.estoque}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/produtos" icon="🧴">Produtos</MenuLink>
-              <MenuLink to="/estoque" icon="📦">Movimentações</MenuLink>
-              <MenuLink to="/estoque-lotes" icon="🏷️">Lotes / Validade</MenuLink>
+              <MenuLink to="/produtos" icon="🧴" onNavigate={fecharMenuMobile}>Produtos</MenuLink>
+              <MenuLink to="/estoque" icon="📦" onNavigate={fecharMenuMobile}>Movimentações</MenuLink>
+              <MenuLink to="/estoque-lotes" icon="🏷️" onNavigate={fecharMenuMobile}>Lotes / Validade</MenuLink>
             </MenuGroup>
           )}
 
@@ -163,12 +207,10 @@ export default function Layout() {
               aberto={menusAbertos.cadastros}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/profissionais" icon="💇">Profissionais</MenuLink>
-              <MenuLink to="/servicos" icon="✨">Serviços</MenuLink>
-              <MenuLink to="/pdvs" icon="🧾">
-                PDVs / Terminais
-              </MenuLink>
-              <MenuLink to="/configuracao-clinica" icon="🏥">Clínica</MenuLink>
+              <MenuLink to="/profissionais" icon="💇" onNavigate={fecharMenuMobile}>Profissionais</MenuLink>
+              <MenuLink to="/servicos" icon="✨" onNavigate={fecharMenuMobile}>Serviços</MenuLink>
+              <MenuLink to="/pdvs" icon="🧾" onNavigate={fecharMenuMobile}>PDVs / Terminais</MenuLink>
+              <MenuLink to="/configuracao-clinica" icon="🏥" onNavigate={fecharMenuMobile}>Clínica</MenuLink>
             </MenuGroup>
           )}
 
@@ -180,12 +222,12 @@ export default function Layout() {
               aberto={menusAbertos.fiscal}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/notas-fiscais" icon="🧾">Notas Fiscais</MenuLink>
-              <MenuLink to="/relatorios" icon="📈">Relatórios</MenuLink>
-              <MenuLink to="/alertas" icon="⚠️">Alertas</MenuLink>
-              <MenuLink to="/financeiro-completo" icon="💳">Financeiro</MenuLink>
-              <MenuLink to="/crm" icon="💬">CRM</MenuLink>
-              <MenuLink to="/configuracao-nfse" icon="🔧">Configuração NFS-e</MenuLink>
+              <MenuLink to="/notas-fiscais" icon="🧾" onNavigate={fecharMenuMobile}>Notas Fiscais</MenuLink>
+              <MenuLink to="/relatorios" icon="📈" onNavigate={fecharMenuMobile}>Relatórios</MenuLink>
+              <MenuLink to="/alertas" icon="⚠️" onNavigate={fecharMenuMobile}>Alertas</MenuLink>
+              <MenuLink to="/financeiro-completo" icon="💳" onNavigate={fecharMenuMobile}>Financeiro</MenuLink>
+              <MenuLink to="/crm" icon="💬" onNavigate={fecharMenuMobile}>CRM</MenuLink>
+              <MenuLink to="/configuracao-nfse" icon="🔧" onNavigate={fecharMenuMobile}>Configuração NFS-e</MenuLink>
             </MenuGroup>
           )}
 
@@ -197,16 +239,13 @@ export default function Layout() {
               aberto={menusAbertos.administracao}
               onToggle={toggleMenu}
             >
-              <MenuLink to="/usuarios" icon="👨‍💻">Usuários</MenuLink>
-              <MenuLink to="/lgpd" icon="🛡️">LGPD</MenuLink>
+              <MenuLink to="/usuarios" icon="👨‍💻" onNavigate={fecharMenuMobile}>Usuários</MenuLink>
+              <MenuLink to="/lgpd" icon="🛡️" onNavigate={fecharMenuMobile}>LGPD</MenuLink>
             </MenuGroup>
           )}
         </nav>
 
-        <button
-          className="btn btn-light btn-sm logout-button"
-          onClick={sair}
-        >
+        <button className="btn btn-light btn-sm logout-button" onClick={sair}>
           Sair do sistema
         </button>
       </aside>

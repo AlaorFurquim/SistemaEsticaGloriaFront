@@ -12,6 +12,9 @@ const inicial = {
   nome: "",
   valor: 0,
   duracaoMinutos: 30,
+  areaAplicacao: "",
+  controlaMl: false,
+  valorPorMl: 0,
 
   codigoServicoMunicipal: "",
   codigoTributacaoMunicipal: "",
@@ -45,6 +48,8 @@ export default function Servicos() {
         ...form,
         valor: Number(form.valor || 0),
         duracaoMinutos: Number(form.duracaoMinutos || 0),
+        controlaMl: Boolean(form.controlaMl),
+        valorPorMl: Number(form.valorPorMl || 0),
         aliquotaIss: Number(form.aliquotaIss || 0),
         issRetido: Boolean(form.issRetido)
       };
@@ -88,6 +93,9 @@ export default function Servicos() {
       codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal || "",
       itemListaServico: servico.itemListaServico || "",
       cnae: servico.cnae || "",
+      areaAplicacao: servico.areaAplicacao || "",
+      controlaMl: !!servico.controlaMl,
+      valorPorMl: servico.valorPorMl || 0,
       aliquotaIss: servico.aliquotaIss || 0,
       issRetido: servico.issRetido || false
     });
@@ -106,7 +114,7 @@ export default function Servicos() {
     <div>
       <PageHeader
         title="Serviços"
-        subtitle="Tabela de serviços do salão e dados fiscais para NFS-e"
+        subtitle="Tabela de serviços do salão e dados fiscais opcionais para NFS-e"
       />
 
       <form className="panel mb-3" onSubmit={salvar}>
@@ -123,6 +131,16 @@ export default function Servicos() {
             />
           </div>
 
+          <div className="col-md-3">
+            <label>Área/região</label>
+            <input
+              className="form-control"
+              value={form.areaAplicacao}
+              onChange={e => setForm({ ...form, areaAplicacao: e.target.value })}
+              placeholder="Ex.: Malar, Têmpora"
+            />
+          </div>
+
           <div className="col-md-2">
             <label>Valor</label>
             <input
@@ -135,6 +153,29 @@ export default function Servicos() {
           </div>
 
           <div className="col-md-2">
+            <label>Valor por ml</label>
+            <input
+              type="number"
+              step="0.01"
+              className="form-control"
+              value={form.valorPorMl}
+              onChange={e => setForm({ ...form, valorPorMl: e.target.value })}
+            />
+          </div>
+
+          <div className="col-md-2">
+            <label>Usa ml?</label>
+            <select
+              className="form-select"
+              value={form.controlaMl ? "true" : "false"}
+              onChange={e => setForm({ ...form, controlaMl: e.target.value === "true" })}
+            >
+              <option value="false">Não</option>
+              <option value="true">Sim</option>
+            </select>
+          </div>
+
+          <div className="col-md-2">
             <label>Duração</label>
             <input
               type="number"
@@ -144,7 +185,7 @@ export default function Servicos() {
             />
           </div>
 
-          <div className="col-md-3">
+          <div className="col-md-1">
             <label>Ativo</label>
             <select
               className="form-select"
@@ -179,7 +220,6 @@ export default function Servicos() {
               value={form.codigoTributacaoMunicipal}
               onChange={e => setForm({ ...form, codigoTributacaoMunicipal: e.target.value })}
               placeholder="Ex: 601"
-              required
             />
           </div>
 
@@ -190,7 +230,6 @@ export default function Servicos() {
               value={form.itemListaServico}
               onChange={e => setForm({ ...form, itemListaServico: e.target.value })}
               placeholder="Ex: 6.01"
-              required
             />
           </div>
 
@@ -250,7 +289,9 @@ export default function Servicos() {
           <thead>
             <tr>
               <th>Serviço</th>
+              <th>Área/região</th>
               <th>Valor</th>
+              <th>Valor/ml</th>
               <th>Duração</th>
               <th>Item Lista</th>
               <th>Cód. Tributação</th>
@@ -264,7 +305,9 @@ export default function Servicos() {
             {lista.map(x => (
               <tr key={x.id}>
                 <td>{x.nome}</td>
+                <td>{x.areaAplicacao || "-"}</td>
                 <td>{formatarMoeda(x.valor)}</td>
+                <td>{x.controlaMl ? formatarMoeda(x.valorPorMl || 0) : "-"}</td>
                 <td>{x.duracaoMinutos} min</td>
                 <td>{x.itemListaServico || "-"}</td>
                 <td>{x.codigoTributacaoMunicipal || "-"}</td>
@@ -291,7 +334,7 @@ export default function Servicos() {
 
             {!lista.length && (
               <tr>
-                <td colSpan="8" className="text-center text-muted py-4">
+                <td colSpan="10" className="text-center text-muted py-4">
                   Nenhum serviço cadastrado.
                 </td>
               </tr>

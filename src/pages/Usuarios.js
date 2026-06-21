@@ -12,12 +12,14 @@ const inicial = {
   email: "",
   senha: "",
   perfilId: "",
+  profissionalId: "",
   ativo: true
 };
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [perfis, setPerfis] = useState([]);
+  const [profissionais, setProfissionais] = useState([]);
   const [form, setForm] = useState(inicial);
   const [editandoId, setEditandoId] = useState(null);
 
@@ -25,9 +27,11 @@ export default function Usuarios() {
     try {
       const usuariosRes = await api.get("/usuarios");
       const perfisRes = await api.get("/usuarios/perfis");
+      const profissionaisRes = await api.get("/profissionais");
 
       setUsuarios(usuariosRes.data);
       setPerfis(perfisRes.data);
+      setProfissionais(profissionaisRes.data);
     } catch (error) {
       alertaErro(
         error.response?.data ||
@@ -45,6 +49,7 @@ export default function Usuarios() {
         email: form.email,
         senha: form.senha,
         perfilId: Number(form.perfilId),
+        profissionalId: form.profissionalId ? Number(form.profissionalId) : null,
         ativo: form.ativo
       };
 
@@ -101,6 +106,7 @@ export default function Usuarios() {
       email: usuario.email,
       senha: "",
       perfilId: usuario.perfilId,
+      profissionalId: usuario.profissionalId || "",
       ativo: usuario.ativo
     });
   }
@@ -113,6 +119,9 @@ export default function Usuarios() {
   useEffect(() => {
     carregar();
   }, []);
+
+  const perfilSelecionado = perfis.find(p => String(p.id) === String(form.perfilId));
+  const deveSelecionarProfissional = perfilSelecionado?.nome === "Profissional";
 
   return (
     <div>
@@ -184,7 +193,8 @@ export default function Usuarios() {
               onChange={e =>
                 setForm({
                   ...form,
-                  perfilId: e.target.value
+                  perfilId: e.target.value,
+                  profissionalId: ""
                 })
               }
               required
@@ -203,6 +213,30 @@ export default function Usuarios() {
               ))}
             </select>
           </div>
+
+          {deveSelecionarProfissional && (
+            <div className="col-md-2">
+              <label>Profissional vinculado</label>
+              <select
+                className="form-select"
+                value={form.profissionalId}
+                onChange={e =>
+                  setForm({
+                    ...form,
+                    profissionalId: e.target.value
+                  })
+                }
+                required
+              >
+                <option value="">Selecione</option>
+                {profissionais.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="col-md-2">
             <label>Status</label>
@@ -255,6 +289,7 @@ export default function Usuarios() {
               <th>Nome</th>
               <th>E-mail</th>
               <th>Perfil</th>
+              <th>Profissional</th>
               <th>Status</th>
               <th width="180">Ações</th>
             </tr>
@@ -266,6 +301,7 @@ export default function Usuarios() {
                 <td>{u.nome}</td>
                 <td>{u.email}</td>
                 <td>{u.perfil}</td>
+                <td>{u.profissional || "-"}</td>
 
                 <td>
                   {u.ativo ? (
