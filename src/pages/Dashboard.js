@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, CartesianGrid, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { formatarMoeda } from "../utils/masks";
@@ -45,9 +45,9 @@ export default function Dashboard() {
   }, [servicoId, dataSelecionada]);
 
   const chartData = [
-    { nome: "Vendas", valor: dados.vendasMes },
-    { nome: "Servicos", valor: dados.servicosMes },
-    { nome: "Comissoes", valor: dados.comissoesMes }
+    { nome: "Vendas", valor: dados.vendasMes, cor: "#5a1d32" },
+    { nome: "Serviços", valor: dados.servicosMes, cor: "#c9a95d" },
+    { nome: "Comissões", valor: dados.comissoesMes, cor: "#8f3d56" }
   ];
 
   const procedimentoSelecionado = servicos.find((servico) => String(servico.id) === String(servicoId));
@@ -111,7 +111,7 @@ export default function Dashboard() {
         </div>
         <div className="col-md-3">
           <div className="metric-card">
-            <span>Faturamento mes</span>
+            <span>Faturamento mês</span>
             <strong>{formatarMoeda(dados.faturamentoMes)}</strong>
           </div>
         </div>
@@ -137,10 +137,10 @@ export default function Dashboard() {
               <th>Procedimento</th>
               <th>Total</th>
               <th>Agendados</th>
-              <th>Concluidos</th>
+              <th>Concluídos</th>
               <th>Cancelados</th>
               <th className="text-end">Valor concluido</th>
-              <th>Horarios</th>
+              <th>Horários</th>
             </tr>
           </thead>
           <tbody>
@@ -164,8 +164,10 @@ export default function Dashboard() {
 
             {!(dados.resumoProcedimentos || []).length && (
               <tr>
-                <td colSpan="7" className="text-center text-muted py-4">
-                  Nenhum procedimento encontrado para esta data.
+                <td colSpan="7">
+                  <div className="dashboard-empty-state">
+                    Nenhum procedimento encontrado para esta data.
+                  </div>
                 </td>
               </tr>
             )}
@@ -176,13 +178,31 @@ export default function Dashboard() {
       <div className="row g-3 mt-2">
         <div className="col-md-8">
           <div className="panel">
-            <h5>Resumo financeiro do mes</h5>
-            <ResponsiveContainer width="100%" height={280}>
+            <h5>Resumo financeiro do mês</h5>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
-                <XAxis dataKey="nome" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatarMoeda(value)} />
-                <Bar dataKey="valor" />
+                <CartesianGrid stroke="#ead8cf" vertical={false} />
+                <XAxis dataKey="nome" axisLine={false} tickLine={false} tick={{ fill: "#5a1d32", fontSize: 13 }} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#7a5866", fontSize: 12 }}
+                  tickFormatter={(value) => formatarMoeda(value).replace("R$ ", "")}
+                />
+                <Tooltip
+                  formatter={(value) => formatarMoeda(value)}
+                  cursor={{ fill: "rgba(201,169,93,.12)" }}
+                  contentStyle={{
+                    border: "1px solid #ead8cf",
+                    borderRadius: 12,
+                    boxShadow: "0 14px 32px rgba(90,29,50,.12)"
+                  }}
+                />
+                <Bar dataKey="valor" radius={[10, 10, 0, 0]} maxBarSize={88}>
+                  {chartData.map((entry) => (
+                    <Cell key={entry.nome} fill={entry.cor} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -192,9 +212,9 @@ export default function Dashboard() {
           <div className="panel">
             <h5>Indicadores</h5>
             <div className="indicator-line"><span>Clientes ativos</span><strong>{dados.clientes}</strong></div>
-            <div className="indicator-line"><span>Vendas no mes</span><strong>{formatarMoeda(dados.vendasMes)}</strong></div>
-            <div className="indicator-line"><span>Servicos no mes</span><strong>{formatarMoeda(dados.servicosMes)}</strong></div>
-            <div className="indicator-line"><span>Comissoes</span><strong>{formatarMoeda(dados.comissoesMes)}</strong></div>
+            <div className="indicator-line"><span>Vendas no mês</span><strong>{formatarMoeda(dados.vendasMes)}</strong></div>
+            <div className="indicator-line"><span>Serviços no mês</span><strong>{formatarMoeda(dados.servicosMes)}</strong></div>
+            <div className="indicator-line"><span>Comissões</span><strong>{formatarMoeda(dados.comissoesMes)}</strong></div>
           </div>
         </div>
       </div>

@@ -686,6 +686,9 @@ body{background:radial-gradient(circle at top left,rgba(233,216,166,.28),transpa
 .agenda-panel .rbc-button-link:hover{background:#fff4c8;box-shadow:0 0 0 3px rgba(201,169,93,.24);color:#3f1222}
 
 .dashboard-schedule-pill{display:inline-flex;align-items:center;margin:2px 4px 2px 0;padding:4px 8px;border-radius:999px;background:#fff4c8;color:#5a1d32;font-size:12px;font-weight:700}
+.dashboard-empty-state{display:flex;align-items:center;justify-content:center;min-height:72px;border:1px dashed #e3cfc4;border-radius:12px;background:linear-gradient(135deg,#fffaf7,#fff);color:#7a5866;font-weight:600}
+.panel h5{color:#2b0b18;font-weight:800;margin-bottom:14px}
+.indicator-line strong{color:#2b0b18}
 
 .receita-print-area{
   display:none;
@@ -1724,3 +1727,14 @@ canvas {
 .login-submit:disabled{opacity:.82;cursor:not-allowed}
 .login-spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:login-spin .8s linear infinite;flex:0 0 auto}
 @keyframes login-spin{to{transform:rotate(360deg)}}
+.app-shell{position:relative;min-height:100vh;min-height:100dvh}
+.app-shell::before{content:"";position:fixed;left:0;top:0;bottom:0;width:278px;background:linear-gradient(180deg,#4a1729 0%,#35101d 100%);z-index:0;pointer-events:none}
+.sidebar{display:flex;flex-direction:column;overflow:hidden;height:100vh;height:100dvh;min-height:100vh;min-height:100dvh;padding-bottom:max(18px,env(safe-area-inset-bottom));z-index:1}
+.content{position:relative;z-index:1}
+.main-menu{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px;padding-bottom:84px;scrollbar-width:thin;scrollbar-color:rgba(233,216,166,.5) rgba(255,255,255,.05)}
+.main-menu::-webkit-scrollbar{width:6px}
+.main-menu::-webkit-scrollbar-track{background:rgba(255,255,255,.05);border-radius:999px}
+.main-menu::-webkit-scrollbar-thumb{background:rgba(233,216,166,.5);border-radius:999px}
+.logout-button{position:fixed;left:24px;bottom:max(18px,env(safe-area-inset-bottom));width:230px;z-index:3;flex:0 0 auto;margin:0;border:1px solid rgba(233,216,166,.32);background:#fff8dc;color:#4a1729;font-weight:800;box-shadow:0 -10px 28px rgba(53,16,29,.22)}
+.logout-button:hover{background:#fff4c8;color:#35101d}
+@media(max-width:900px){.app-shell::before{display:none}.sidebar{height:100vh;height:100dvh}.logout-button{position:absolute;left:18px;right:18px;bottom:max(18px,env(safe-area-inset-bottom));width:auto}}
