@@ -59,7 +59,7 @@ export default function Atendimentos() {
   }
 
   function clienteLabel(cliente) {
-    return cliente ? `${cliente.nome || ""}${cliente.telefone ? ` - ${cliente.telefone}` : ""}`.trim() : "";
+    return cliente ? String(cliente.nome || "").trim() : "";
   }
 
   function encontrarCliente(texto) {
@@ -69,8 +69,6 @@ export default function Atendimentos() {
     return clientes.find((cliente) => {
       const label = clienteLabel(cliente).toLowerCase();
       const nome = String(cliente.nome || "").trim().toLowerCase();
-      const telefone = String(cliente.telefone || "").replace(/\D/g, "");
-      const buscaTelefone = normalizado.replace(/\D/g, "");
 
       return (
         String(cliente.id) === normalizado ||
@@ -79,8 +77,7 @@ export default function Atendimentos() {
         label.startsWith(normalizado) ||
         nome.startsWith(normalizado) ||
         label.includes(normalizado) ||
-        nome.includes(normalizado) ||
-        (buscaTelefone && telefone.includes(buscaTelefone))
+        nome.includes(normalizado)
       );
     }) || null;
   }
@@ -92,15 +89,8 @@ export default function Atendimentos() {
     return clientes
       .filter((cliente) => {
         const label = clienteLabel(cliente).toLowerCase();
-        const documento = String(cliente.documento || "").replace(/\D/g, "");
-        const telefone = String(cliente.telefone || "").replace(/\D/g, "");
-        const buscaNumerica = normalizado.replace(/\D/g, "");
 
-        return (
-          label.includes(normalizado) ||
-          (buscaNumerica && telefone.includes(buscaNumerica)) ||
-          (buscaNumerica && documento.includes(buscaNumerica))
-        );
+        return label.includes(normalizado);
       })
       .slice(0, 8);
   }
@@ -331,11 +321,7 @@ export default function Atendimentos() {
       .filter((item) => {
         if (clienteId || !termoCliente) return true;
 
-        const textoCliente = [
-          item.cliente?.nome,
-          item.cliente?.telefone,
-          item.cliente?.documento
-        ].filter(Boolean).join(" ").toLowerCase();
+        const textoCliente = String(item.cliente?.nome || "").toLowerCase();
 
         return textoCliente.includes(termoCliente);
       })
@@ -392,7 +378,7 @@ export default function Atendimentos() {
               }}
               onFocus={() => setClienteBuscaFocado(true)}
               onBlur={() => setTimeout(() => setClienteBuscaFocado(false), 120)}
-              placeholder="Digite nome, telefone ou documento"
+              placeholder="Digite o nome do cliente"
             />
             {clienteBuscaFocado && sugestoesClientes.length > 0 && (
               <div className="search-suggestions">
@@ -408,7 +394,6 @@ export default function Atendimentos() {
                     }}
                   >
                     <strong>{cliente.nome}</strong>
-                    {cliente.telefone && <span>{cliente.telefone}</span>}
                   </button>
                 ))}
               </div>

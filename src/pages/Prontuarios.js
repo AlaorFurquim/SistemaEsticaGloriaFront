@@ -4,10 +4,38 @@ import PageHeader from "../components/PageHeader";
 import { alertaErro, alertaSucesso, loading, fecharLoading } from "../utils/alerts";
 import { formatarDataHora } from "../utils/masks";
 
+const clienteLabel = (cliente) =>
+  cliente ? String(cliente.nome || "").trim() : "";
+
+function encontrarCliente(clientes, texto) {
+  const normalizado = String(texto || "").trim().toLowerCase();
+  if (!normalizado) return null;
+
+  return clientes.find((cliente) => {
+    const label = clienteLabel(cliente).toLowerCase();
+    return String(cliente.id) === normalizado || label === normalizado || label.includes(normalizado);
+  }) || null;
+}
+
+function filtrarClientes(clientes, texto) {
+  const normalizado = String(texto || "").trim().toLowerCase();
+  if (!normalizado) return [];
+
+  return clientes
+    .filter((cliente) => {
+      const label = clienteLabel(cliente).toLowerCase();
+      return label.includes(normalizado);
+    })
+    .slice(0, 8);
+}
+
 export default function Prontuarios() {
   const [clientes, setClientes] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
   const [clienteId, setClienteId] = useState("");
+  const [clienteBusca, setClienteBusca] = useState("");
+  const [clienteBuscaFocada, setClienteBuscaFocada] = useState(false);
+  const [prontuarioEditando, setProntuarioEditando] = useState(null);
   const [lista, setLista] = useState([]);
 
   const [form, setForm] = useState({
@@ -19,6 +47,19 @@ export default function Prontuarios() {
   const [fotoAntes, setFotoAntes] = useState(null);
   const [fotoDepois, setFotoDepois] = useState(null);
   const [arquivos, setArquivos] = useState([]);
+  const sugestoesClientes = filtrarClientes(clientes, clienteBusca);
+
+  function limparFormulario() {
+    setProntuarioEditando(null);
+    setForm({
+      profissionalId: "",
+      tipoConsulta: "PrimeiraConsulta",
+      observacoes: ""
+    });
+    setFotoAntes(null);
+    setFotoDepois(null);
+    setArquivos([]);
+  }
 
   async function carregarBase() {
     try {
@@ -96,19 +137,17 @@ export default function Prontuarios() {
     try {
       loading();
 
-      await api.post("/prontuarios", data, {
+      const config = {
         headers: { "Content-Type": "multipart/form-data" }
-      });
+      };
 
-      setForm({
-        profissionalId: "",
-        tipoConsulta: "PrimeiraConsulta",
-        observacoes: ""
-      });
+      if (prontuarioEditando) {
+        await api.put(`/prontuarios/${prontuarioEditando.id}`, data, config);
+      } else {
+        await api.post("/prontuarios", data, config);
+      }
 
-      setFotoAntes(null);
-      setFotoDepois(null);
-      setArquivos([]);
+      limparFormulario();
 
       await carregarProntuarios();
 
@@ -136,6 +175,22 @@ export default function Prontuarios() {
     }
   }
 
+  function editarProntuario(prontuario) {
+    const cliente = clientes.find((item) => String(item.id) === String(prontuario.clienteId));
+    setProntuarioEditando(prontuario);
+    setClienteId(String(prontuario.clienteId));
+    setClienteBusca(clienteLabel(cliente));
+    setForm({
+      profissionalId: prontuario.profissionalId ? String(prontuario.profissionalId) : "",
+      tipoConsulta: prontuario.tipoConsulta || "PrimeiraConsulta",
+      observacoes: prontuario.observacoes || ""
+    });
+    setFotoAntes(null);
+    setFotoDepois(null);
+    setArquivos([]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   useEffect(() => {
     carregarBase();
   }, []);
@@ -149,24 +204,53 @@ export default function Prontuarios() {
 
       <div className="panel mb-3">
         <label>Cliente</label>
-        <select
-          className="form-select"
-          value={clienteId}
+        <div className="search-field">
+          <input
+          className="form-control"
+          value={clienteBusca}
           onChange={(e) => {
-            setClienteId(e.target.value);
-            carregarProntuarios(e.target.value);
+            const texto = e.target.value;
+            const cliente = encontrarCliente(clientes, texto);
+            setClienteBusca(texto);
+            setClienteId(cliente?.id ? String(cliente.id) : "");
+            setLista([]);
+            limparFormulario();
           }}
-        >
-          <option value="">Selecione...</option>
-          {clientes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nome}
-            </option>
-          ))}
-        </select>
+          onFocus={() => setClienteBuscaFocada(true)}
+          onBlur={() => setTimeout(() => setClienteBuscaFocada(false), 120)}
+          placeholder="Digite o nome ou telefone do cliente"
+        />
+
+          {clienteBuscaFocada && sugestoesClientes.length > 0 && (
+            <div className="search-suggestions">
+              {sugestoesClientes.map((cliente) => (
+                <button
+                  key={cliente.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setClienteBusca(clienteLabel(cliente));
+                    setClienteId(String(cliente.id));
+                    setClienteBuscaFocada(false);
+                    limparFormulario();
+                    carregarProntuarios(cliente.id);
+                  }}
+                >
+                  <strong>{cliente.nome}</strong>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <form className="panel mb-3" onSubmit={salvar}>
+        {prontuarioEditando && (
+          <div className="alert alert-warning py-2 mb-3">
+            Editando prontuÃ¡rio de {formatarDataHora(prontuarioEditando.dataCadastro)}. Ao salvar, as novas informaÃ§Ãµes ficam no mesmo registro.
+          </div>
+        )}
+
         <div className="row g-2">
           <div className="col-md-3">
             <label>Profissional</label>
@@ -252,9 +336,17 @@ export default function Prontuarios() {
 
           <div className="col-md-2">
             <button className="btn btn-primary w-100">
-              Salvar
+              {prontuarioEditando ? "Atualizar" : "Salvar"}
             </button>
           </div>
+
+          {prontuarioEditando && (
+            <div className="col-md-2">
+              <button type="button" className="btn btn-light w-100" onClick={limparFormulario}>
+                Cancelar ediÃ§Ã£o
+              </button>
+            </div>
+          )}
         </div>
       </form>
 
@@ -267,6 +359,7 @@ export default function Prontuarios() {
               <th>Registro</th>
               <th>Evolução / conduta</th>
               <th>Anexos</th>
+              <th>Ações</th>
             </tr>
           </thead>
 
@@ -289,12 +382,21 @@ export default function Prontuarios() {
                     </button>
                   ))}
                 </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={() => editarProntuario(p)}
+                  >
+                    Editar
+                  </button>
+                </td>
               </tr>
             ))}
 
             {!lista.length && (
               <tr>
-                <td colSpan="5" className="text-center text-muted py-4">
+                <td colSpan="6" className="text-center text-muted py-4">
                   Nenhum prontuário encontrado.
                 </td>
               </tr>

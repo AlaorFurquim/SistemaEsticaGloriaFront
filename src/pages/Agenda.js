@@ -40,7 +40,7 @@ const detalhesInicial = {
 };
 
 const clienteLabel = (cliente) =>
-  cliente ? `${cliente.nome || ""}${cliente.telefone ? ` - ${cliente.telefone}` : ""}`.trim() : "";
+  cliente ? String(cliente.nome || "").trim() : "";
 
 const servicoLabel = (servico) =>
   servico ? String(servico.nome || "").trim() : "";
@@ -64,10 +64,8 @@ function filtrarPorLabel(lista, texto, labelFn) {
   return lista
     .filter((item) => {
       const label = labelFn(item).toLowerCase();
-      const telefone = String(item.telefone || "").replace(/\D/g, "");
-      const buscaTelefone = normalizado.replace(/\D/g, "");
 
-      return label.includes(normalizado) || (buscaTelefone && telefone.includes(buscaTelefone));
+      return label.includes(normalizado);
     })
     .slice(0, 8);
 }
@@ -403,7 +401,7 @@ export default function Agenda() {
   }
 
   async function salvarDetalhesAtendimento(e) {
-    e.preventDefault();
+    e?.preventDefault?.();
     if (!eventoSelecionado) return;
     const clienteSelecionado = encontrarPorLabel(clientes, clienteDetalhesBusca, clienteLabel);
     const servicoSelecionado = encontrarPorLabel(servicos, servicoDetalhesBusca, servicoLabel);
@@ -659,7 +657,7 @@ export default function Agenda() {
                           }}
                           onFocus={() => setClienteBuscaFocado(true)}
                           onBlur={() => setTimeout(() => setClienteBuscaFocado(false), 120)}
-                          placeholder="Digite o nome ou telefone"
+                          placeholder="Digite o nome do cliente"
                           required
                         />
                         {clienteBuscaFocado && sugestoesClientes.length > 0 && (
@@ -676,7 +674,6 @@ export default function Agenda() {
                                 }}
                               >
                                 <strong>{cliente.nome}</strong>
-                                {cliente.telefone && <span>{cliente.telefone}</span>}
                               </button>
                             ))}
                           </div>
@@ -798,7 +795,7 @@ export default function Agenda() {
         <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,0.55)" }}>
           <div className="modal-dialog modal-md modal-dialog-centered">
             <div className="modal-content">
-              <form onSubmit={salvarDetalhesAtendimento}>
+              <div>
                 <div className="modal-header">
                   <h5 className="modal-title">Detalhes do atendimento</h5>
                   <button type="button" className="btn-close" onClick={() => setDetalhesAberto(false)} />
@@ -847,7 +844,7 @@ export default function Agenda() {
                           }}
                           onFocus={() => setClienteDetalhesFocado(true)}
                           onBlur={() => setTimeout(() => setClienteDetalhesFocado(false), 120)}
-                          placeholder="Digite o nome ou telefone"
+                          placeholder="Digite o nome do cliente"
                           required
                         />
                         {clienteDetalhesFocado && sugestoesClientesDetalhes.length > 0 && (
@@ -864,7 +861,6 @@ export default function Agenda() {
                                 }}
                               >
                                 <strong>{cliente.nome}</strong>
-                                {cliente.telefone && <span>{cliente.telefone}</span>}
                               </button>
                             ))}
                           </div>
@@ -1008,13 +1004,13 @@ export default function Agenda() {
                         Cancelar edição
                       </button>
 
-                      <button type="submit" className="btn btn-primary">
+                      <button type="button" className="btn btn-primary" onClick={salvarDetalhesAtendimento}>
                         Salvar alterações
                       </button>
                     </>
                   )}
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>
