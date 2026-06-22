@@ -10,6 +10,7 @@ function parseTermo(texto) {
 
   const itens = [];
   const introducao = [];
+  const lgpdImagem = [];
   const contrato = [];
   let resumo = "";
   let final = "";
@@ -18,6 +19,11 @@ function parseTermo(texto) {
   for (const linha of linhas) {
     if (/^Servicos e itens aceitos:/i.test(linha)) {
       secao = "itens";
+      continue;
+    }
+
+    if (/^LGPD e uso de imagem:/i.test(linha)) {
+      secao = "lgpdImagem";
       continue;
     }
 
@@ -47,12 +53,17 @@ function parseTermo(texto) {
       continue;
     }
 
+    if (secao === "lgpdImagem") {
+      lgpdImagem.push(linha);
+      continue;
+    }
+
     if (secao === "introducao") {
       introducao.push(linha);
     }
   }
 
-  return { introducao, itens, resumo, contrato, final };
+  return { introducao, lgpdImagem, itens, resumo, contrato, final };
 }
 
 function parseItem(item) {
@@ -70,11 +81,13 @@ export default function AceiteTermoPublico() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [autorizaUsoImagem, setAutorizaUsoImagem] = useState(false);
 
   async function carregar() {
     try {
       const res = await api.get(`/atendimentos/aceite/${token}`);
       setDados(res.data);
+      setAutorizaUsoImagem(!!res.data?.autorizaUsoImagem);
     } catch (error) {
       setErro(error.response?.data || "Termo não encontrado.");
     }
@@ -83,7 +96,7 @@ export default function AceiteTermoPublico() {
   async function concordar() {
     try {
       setSalvando(true);
-      const res = await api.post(`/atendimentos/aceite/${token}/concordar`);
+      const res = await api.post(`/atendimentos/aceite/${token}/concordar`, { autorizaUsoImagem });
       setDados((atual) => ({ ...atual, ...res.data }));
     } catch (error) {
       setErro(error.response?.data || "Não foi possível registrar o aceite.");
@@ -121,6 +134,15 @@ export default function AceiteTermoPublico() {
                   <p key={index}>{linha}</p>
                 ))}
               </section>
+
+              {termo.lgpdImagem.length ? (
+                <section>
+                  <h2>LGPD e uso de imagem</h2>
+                  {termo.lgpdImagem.map((linha, index) => (
+                    <p key={index}>{linha}</p>
+                  ))}
+                </section>
+              ) : null}
 
               {termo.itens.length ? (
                 <section>
@@ -166,9 +188,21 @@ export default function AceiteTermoPublico() {
                 <span>Obrigado. Você já pode fechar esta página.</span>
               </div>
             ) : (
-              <button type="button" className="btn btn-primary public-accept-button" onClick={concordar} disabled={salvando}>
-                Li e concordo com o termo e contrato
-              </button>
+              <>
+                <label className="public-image-consent">
+                  <input
+                    type="checkbox"
+                    checked={autorizaUsoImagem}
+                    onChange={(e) => setAutorizaUsoImagem(e.target.checked)}
+                  />
+                  <span>
+                    Autorização separada: autorizo o uso de minha imagem para divulgação, redes sociais, portfólio, materiais comerciais ou publicidade, sem identificação nominal quando possível.
+                  </span>
+                </label>
+                <button type="button" className="btn btn-primary public-accept-button" onClick={concordar} disabled={salvando}>
+                  Li e concordo com o termo, contrato e LGPD
+                </button>
+              </>
             )}
           </>
         )}

@@ -77,7 +77,7 @@ export default function Login() {
           <h1>Gest&atilde;o completa para o seu neg&oacute;cio.</h1>
 
           <p>
-            Controle agenda, atendimentos, PDV, estoque, caixa, comiss&otilde;es,
+            Controle agenda, atendimentos, estoque, comiss&otilde;es,
             clientes e relat&oacute;rios em uma &uacute;nica plataforma profissional.
           </p>
         </div>

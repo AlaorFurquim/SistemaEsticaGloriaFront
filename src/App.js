@@ -3,8 +3,6 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Agenda from "./pages/Agenda";
-import Pdv from "./pages/Pdv";
-import Caixa from "./pages/Caixa";
 import Clientes from "./pages/Clientes";
 import Profissionais from "./pages/Profissionais";
 import Servicos from "./pages/Servicos";
@@ -21,7 +19,6 @@ import ConfiguracaoNfse from "./pages/ConfiguracaoNfse";
 import Prontuarios from "./pages/Prontuarios";
 import Orcamentos from "./pages/Orcamentos";
 import Aniversariantes from "./pages/Aniversariantes";
-import PdvTerminais from "./pages/PdvTerminais";
 import Receitas from "./pages/Receitas";
 import Anamneses from "./pages/Anamneses";
 import TermosConsentimento from "./pages/TermosConsentimento";
@@ -70,8 +67,6 @@ const Pages = {
   Layout: paginaSegura(Layout, "Layout"),
   Dashboard: paginaSegura(Dashboard, "Dashboard"),
   Agenda: paginaSegura(Agenda, "Agenda"),
-  Pdv: paginaSegura(Pdv, "Pdv"),
-  Caixa: paginaSegura(Caixa, "Caixa"),
   Clientes: paginaSegura(Clientes, "Clientes"),
   Profissionais: paginaSegura(Profissionais, "Profissionais"),
   Servicos: paginaSegura(Servicos, "Servicos"),
@@ -87,7 +82,6 @@ const Pages = {
   Prontuarios: paginaSegura(Prontuarios, "Prontuarios"),
   Orcamentos: paginaSegura(Orcamentos, "Orcamentos"),
   Aniversariantes: paginaSegura(Aniversariantes, "Aniversariantes"),
-  PdvTerminais: paginaSegura(PdvTerminais, "PdvTerminais"),
   Receitas: paginaSegura(Receitas, "Receitas"),
   Anamneses: paginaSegura(Anamneses, "Anamneses"),
   TermosConsentimento: paginaSegura(TermosConsentimento, "TermosConsentimento"),
@@ -130,24 +124,6 @@ export default function App() {
             element={
               <ProtectedRoute roles={["Administrador", "Gerente", "Atendente", "Profissional"]}>
                 <Pages.Agenda />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="pdv"
-            element={
-              <ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}>
-                <Pages.Pdv />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="caixa"
-            element={
-              <ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}>
-                <Pages.Caixa />
               </ProtectedRoute>
             }
           />
@@ -305,7 +281,6 @@ export default function App() {
             }
           />
 
-          <Route path="/pdvs" element={<ProtectedRoute roles={["Administrador"]}><Pages.PdvTerminais /></ProtectedRoute>} />
           <Route path="/configuracao-nfse" element={<ProtectedRoute><Pages.ConfiguracaoNfse /></ProtectedRoute>} />
 
           <Route path="sem-permissao" element={<SemPermissao />} />

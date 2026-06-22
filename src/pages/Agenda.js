@@ -29,6 +29,49 @@ const inicial = {
   tipoAgendamento: "PrimeiroAtendimento"
 };
 
+const detalhesInicial = {
+  clienteId: "",
+  servicoId: "",
+  profissionalId: "",
+  dataAtendimento: "",
+  horarioAtendimento: "",
+  tipoConsulta: "PrimeiraConsulta",
+  status: "Agendado"
+};
+
+const clienteLabel = (cliente) =>
+  cliente ? `${cliente.nome || ""}${cliente.telefone ? ` - ${cliente.telefone}` : ""}`.trim() : "";
+
+const servicoLabel = (servico) =>
+  servico ? String(servico.nome || "").trim() : "";
+
+function encontrarPorLabel(lista, texto, labelFn) {
+  const normalizado = String(texto || "").trim().toLowerCase();
+  if (!normalizado) return null;
+
+  return lista.find((item) =>
+    String(item.id) === normalizado ||
+    labelFn(item).toLowerCase() === normalizado ||
+    labelFn(item).toLowerCase().startsWith(normalizado) ||
+    labelFn(item).toLowerCase().includes(normalizado)
+  ) || null;
+}
+
+function filtrarPorLabel(lista, texto, labelFn) {
+  const normalizado = String(texto || "").trim().toLowerCase();
+  if (!normalizado) return [];
+
+  return lista
+    .filter((item) => {
+      const label = labelFn(item).toLowerCase();
+      const telefone = String(item.telefone || "").replace(/\D/g, "");
+      const buscaTelefone = normalizado.replace(/\D/g, "");
+
+      return label.includes(normalizado) || (buscaTelefone && telefone.includes(buscaTelefone));
+    })
+    .slice(0, 8);
+}
+
 function toInputDateTime(date) {
   const d = new Date(date);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -117,10 +160,24 @@ export default function Agenda() {
   const [detalhesAberto, setDetalhesAberto] = useState(false);
   const [cancelamentoAberto, setCancelamentoAberto] = useState(false);
   const [motivoCancelamento, setMotivoCancelamento] = useState("");
+  const [editandoDetalhes, setEditandoDetalhes] = useState(false);
   const [slotSelecionado, setSlotSelecionado] = useState(new Date());
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
   const [eventoSelecionado, setEventoSelecionado] = useState(null);
   const [form, setForm] = useState(inicial);
+  const [formDetalhes, setFormDetalhes] = useState(detalhesInicial);
+  const [clienteBusca, setClienteBusca] = useState("");
+  const [servicoBusca, setServicoBusca] = useState("");
+  const [clienteDetalhesBusca, setClienteDetalhesBusca] = useState("");
+  const [servicoDetalhesBusca, setServicoDetalhesBusca] = useState("");
+  const [clienteBuscaFocado, setClienteBuscaFocado] = useState(false);
+  const [servicoBuscaFocado, setServicoBuscaFocado] = useState(false);
+  const [clienteDetalhesFocado, setClienteDetalhesFocado] = useState(false);
+  const [servicoDetalhesFocado, setServicoDetalhesFocado] = useState(false);
+  const sugestoesClientes = filtrarPorLabel(clientes, clienteBusca, clienteLabel);
+  const sugestoesServicos = filtrarPorLabel(servicos, servicoBusca, servicoLabel);
+  const sugestoesClientesDetalhes = filtrarPorLabel(clientes, clienteDetalhesBusca, clienteLabel);
+  const sugestoesServicosDetalhes = filtrarPorLabel(servicos, servicoDetalhesBusca, servicoLabel);
 
   async function carregar() {
     try {
@@ -170,8 +227,23 @@ export default function Agenda() {
   }
 
   function abrirDetalhes(evento) {
+    const clienteSelecionado = clientes.find((cliente) => String(cliente.id) === String(evento.resource?.clienteId));
+    const servicoSelecionado = servicos.find((servico) => String(servico.id) === String(evento.resource?.servicoId));
+
     setEventoSelecionado(evento);
     setDataSelecionada(evento.start);
+    setEditandoDetalhes(false);
+    setClienteDetalhesBusca(clienteLabel(clienteSelecionado));
+    setServicoDetalhesBusca(servicoLabel(servicoSelecionado));
+    setFormDetalhes({
+      clienteId: evento.resource?.clienteId || "",
+      servicoId: evento.resource?.servicoId || "",
+      profissionalId: evento.resource?.profissionalId || "",
+      dataAtendimento: toInputDate(evento.start),
+      horarioAtendimento: toInputTime(evento.start),
+      tipoConsulta: evento.resource?.retorno || evento.resource?.tipoConsulta === "Retorno" ? "Retorno" : "PrimeiraConsulta",
+      status: evento.resource?.status || "Agendado"
+    });
     setDetalhesAberto(true);
   }
 
@@ -182,12 +254,16 @@ export default function Agenda() {
   }
 
   function abrirNovoAgendamento(dataBase = slotSelecionado) {
+    const servicoInicial = servicos[0];
+
     setForm({
       ...inicial,
-      servicoId: servicos[0]?.id ? String(servicos[0].id) : "",
+      servicoId: servicoInicial?.id ? String(servicoInicial.id) : "",
       dataAtendimento: toInputDate(dataBase),
       horarioAtendimento: toInputTime(dataBase)
     });
+    setClienteBusca("");
+    setServicoBusca(servicoLabel(servicoInicial));
 
     setResumoAberto(false);
     setModalAberto(true);
@@ -196,6 +272,8 @@ export default function Agenda() {
   function fecharAgendamento() {
     setModalAberto(false);
     setForm(inicial);
+    setClienteBusca("");
+    setServicoBusca("");
   }
 
   async function salvarAgendamentoCompatibilidade(payload) {
@@ -247,8 +325,10 @@ export default function Agenda() {
 
   async function salvarAgendamento(e) {
     e.preventDefault();
+    const clienteSelecionado = encontrarPorLabel(clientes, clienteBusca, clienteLabel);
+    const servicoSelecionado = encontrarPorLabel(servicos, servicoBusca, servicoLabel);
 
-    if (form.modoCliente === "existente" && !form.clienteId) {
+    if (form.modoCliente === "existente" && !clienteSelecionado) {
       alertaErro("Selecione o cliente ou habilite o cadastro de novo cliente.");
       return;
     }
@@ -263,17 +343,17 @@ export default function Agenda() {
       return;
     }
 
-    if (!form.servicoId) {
+    if (!servicoSelecionado) {
       alertaErro("Selecione o procedimento.");
       return;
     }
 
     try {
       const payload = {
-        clienteId: form.modoCliente === "existente" ? Number(form.clienteId) : null,
+        clienteId: form.modoCliente === "existente" ? Number(clienteSelecionado.id) : null,
         nome: form.modoCliente === "novo" ? form.nome.trim() : "",
         telefone: form.modoCliente === "novo" ? form.telefone.trim() : "",
-        servicoId: Number(form.servicoId),
+        servicoId: Number(servicoSelecionado.id),
         dataHora: `${form.dataAtendimento}T${form.horarioAtendimento}`,
         tipoAgendamento: form.tipoAgendamento
       };
@@ -319,6 +399,54 @@ export default function Agenda() {
         error.response?.data ||
           "N\u00e3o foi poss\u00edvel iniciar o atendimento."
       );
+    }
+  }
+
+  async function salvarDetalhesAtendimento(e) {
+    e.preventDefault();
+    if (!eventoSelecionado) return;
+    const clienteSelecionado = encontrarPorLabel(clientes, clienteDetalhesBusca, clienteLabel);
+    const servicoSelecionado = encontrarPorLabel(servicos, servicoDetalhesBusca, servicoLabel);
+
+    if (!clienteSelecionado || !servicoSelecionado || !formDetalhes.dataAtendimento || !formDetalhes.horarioAtendimento) {
+      alertaErro("Preencha cliente, procedimento, data e horário.");
+      return;
+    }
+
+    try {
+      const servico = servicoSelecionado;
+      const profissional = profissionais.find((item) => String(item.id) === String(formDetalhes.profissionalId));
+      const retorno = formDetalhes.tipoConsulta === "Retorno";
+      const valor = Number(eventoSelecionado.resource?.valor ?? servico?.valor ?? 0);
+      const desconto = Number(eventoSelecionado.resource?.desconto ?? 0);
+
+      if (retorno && !eventoSelecionado.resource?.atendimentoOrigemId) {
+        alertaErro("Para mudar para retorno, inicie pelo fluxo de agendamento de retorno vinculado ao atendimento anterior.");
+        return;
+      }
+
+      await api.put(`/atendimentos/${eventoSelecionado.id}`, {
+        id: eventoSelecionado.id,
+        clienteId: Number(clienteSelecionado.id),
+        servicoId: Number(servicoSelecionado.id),
+        profissionalId: formDetalhes.profissionalId ? Number(formDetalhes.profissionalId) : null,
+        dataHora: `${formDetalhes.dataAtendimento}T${formDetalhes.horarioAtendimento}`,
+        tipoConsulta: retorno ? "Retorno" : "PrimeiraConsulta",
+        retorno,
+        atendimentoOrigemId: eventoSelecionado.resource?.atendimentoOrigemId || null,
+        status: formDetalhes.status,
+        valor,
+        desconto,
+        valorFinal: valor - desconto,
+        valorComissao: profissional ? (valor - desconto) * (Number(profissional.percentualComissao || 0) / 100) : 0
+      });
+
+      await alertaSucesso("Atendimento atualizado com sucesso.");
+      setEditandoDetalhes(false);
+      setDetalhesAberto(false);
+      await carregar();
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível atualizar o atendimento.");
     }
   }
 
@@ -518,22 +646,41 @@ export default function Agenda() {
                     </div>
 
                     {form.modoCliente === "existente" ? (
-                      <div className="col-md-12">
+                      <div className="col-md-12 search-field">
                         <label>Pesquisar cliente</label>
-                        <select
-                          className="form-select"
-                          value={form.clienteId}
-                          onChange={(e) => setForm({ ...form, clienteId: e.target.value })}
+                        <input
+                          className="form-control"
+                          value={clienteBusca}
+                          onChange={(e) => {
+                            const texto = e.target.value;
+                            const cliente = encontrarPorLabel(clientes, texto, clienteLabel);
+                            setClienteBusca(texto);
+                            setForm({ ...form, clienteId: cliente?.id ? String(cliente.id) : "" });
+                          }}
+                          onFocus={() => setClienteBuscaFocado(true)}
+                          onBlur={() => setTimeout(() => setClienteBuscaFocado(false), 120)}
+                          placeholder="Digite o nome ou telefone"
                           required
-                        >
-                          <option value="">Selecione o cliente</option>
-                          {clientes.map((cliente) => (
-                            <option key={cliente.id} value={cliente.id}>
-                              {cliente.nome}
-                              {cliente.telefone ? ` - ${cliente.telefone}` : ""}
-                            </option>
-                          ))}
-                        </select>
+                        />
+                        {clienteBuscaFocado && sugestoesClientes.length > 0 && (
+                          <div className="search-suggestions">
+                            {sugestoesClientes.map((cliente) => (
+                              <button
+                                key={cliente.id}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  setClienteBusca(clienteLabel(cliente));
+                                  setForm({ ...form, clienteId: String(cliente.id) });
+                                  setClienteBuscaFocado(false);
+                                }}
+                              >
+                                <strong>{cliente.nome}</strong>
+                                {cliente.telefone && <span>{cliente.telefone}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -559,21 +706,41 @@ export default function Agenda() {
                       </>
                     )}
 
-                    <div className="col-md-12">
+                    <div className="col-md-12 search-field">
                       <label>Procedimento</label>
-                      <select
-                        className="form-select"
-                        value={form.servicoId}
-                        onChange={(e) => setForm({ ...form, servicoId: e.target.value })}
+                      <input
+                        className="form-control"
+                        value={servicoBusca}
+                        onChange={(e) => {
+                          const texto = e.target.value;
+                          const servico = encontrarPorLabel(servicos, texto, servicoLabel);
+                          setServicoBusca(texto);
+                          setForm({ ...form, servicoId: servico?.id ? String(servico.id) : "" });
+                        }}
+                        onFocus={() => setServicoBuscaFocado(true)}
+                        onBlur={() => setTimeout(() => setServicoBuscaFocado(false), 120)}
+                        placeholder="Digite o procedimento"
                         required
-                      >
-                        <option value="">Selecione o procedimento</option>
-                        {servicos.map((servico) => (
-                          <option key={servico.id} value={servico.id}>
-                            {servico.nome}
-                          </option>
-                        ))}
-                      </select>
+                      />
+                      {servicoBuscaFocado && sugestoesServicos.length > 0 && (
+                        <div className="search-suggestions">
+                          {sugestoesServicos.map((servico) => (
+                            <button
+                              key={servico.id}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setServicoBusca(servicoLabel(servico));
+                                setForm({ ...form, servicoId: String(servico.id) });
+                                setServicoBuscaFocado(false);
+                              }}
+                            >
+                              <strong>{servico.nome}</strong>
+                              {servico.areaAplicacao && <span>{servico.areaAplicacao}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="col-md-6">
@@ -631,61 +798,223 @@ export default function Agenda() {
         <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,0.55)" }}>
           <div className="modal-dialog modal-md modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Detalhes do atendimento</h5>
-                <button type="button" className="btn-close" onClick={() => setDetalhesAberto(false)} />
-              </div>
-
-              <div className="modal-body">
-                <div className="agenda-detail-list">
-                  <div>
-                    <span>Paciente / serviço</span>
-                    <strong>{eventoSelecionado.title}</strong>
-                  </div>
-                  <div>
-                    <span>Início</span>
-                    <strong>{formatarDataHora(eventoSelecionado.start)}</strong>
-                  </div>
-                  <div>
-                    <span>Fim</span>
-                    <strong>{formatarDataHora(eventoSelecionado.end)}</strong>
-                  </div>
-                  <div>
-                    <span>Status</span>
-                    <strong>{itemDetalhe?.status || "-"}</strong>
-                  </div>
-                  <div>
-                    <span>Profissional</span>
-                    <strong>{itemDetalhe?.profissional || "-"}</strong>
-                  </div>
-                  <div>
-                    <span>Tipo</span>
-                    <strong>{textoTipo(itemDetalhe?.tipoConsulta, itemDetalhe?.retorno)}</strong>
-                  </div>
+              <form onSubmit={salvarDetalhesAtendimento}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Detalhes do atendimento</h5>
+                  <button type="button" className="btn-close" onClick={() => setDetalhesAberto(false)} />
                 </div>
-              </div>
 
-              <div className="modal-footer agenda-detail-actions">
-                <button type="button" className="btn btn-outline-secondary" onClick={() => setDetalhesAberto(false)}>
-                  Ok
-                </button>
+                <div className="modal-body">
+                  {!editandoDetalhes ? (
+                    <div className="agenda-detail-list">
+                      <div>
+                        <span>Paciente / serviço</span>
+                        <strong>{eventoSelecionado.title}</strong>
+                      </div>
+                      <div>
+                        <span>Início</span>
+                        <strong>{formatarDataHora(eventoSelecionado.start)}</strong>
+                      </div>
+                      <div>
+                        <span>Fim</span>
+                        <strong>{formatarDataHora(eventoSelecionado.end)}</strong>
+                      </div>
+                      <div>
+                        <span>Status</span>
+                        <strong>{itemDetalhe?.status || "-"}</strong>
+                      </div>
+                      <div>
+                        <span>Profissional</span>
+                        <strong>{itemDetalhe?.profissional || "-"}</strong>
+                      </div>
+                      <div>
+                        <span>Tipo</span>
+                        <strong>{textoTipo(itemDetalhe?.tipoConsulta, itemDetalhe?.retorno)}</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="row g-3">
+                      <div className="col-md-12 search-field">
+                        <label>Cliente</label>
+                        <input
+                          className="form-control"
+                          value={clienteDetalhesBusca}
+                          onChange={(e) => {
+                            const texto = e.target.value;
+                            const cliente = encontrarPorLabel(clientes, texto, clienteLabel);
+                            setClienteDetalhesBusca(texto);
+                            setFormDetalhes({ ...formDetalhes, clienteId: cliente?.id ? String(cliente.id) : "" });
+                          }}
+                          onFocus={() => setClienteDetalhesFocado(true)}
+                          onBlur={() => setTimeout(() => setClienteDetalhesFocado(false), 120)}
+                          placeholder="Digite o nome ou telefone"
+                          required
+                        />
+                        {clienteDetalhesFocado && sugestoesClientesDetalhes.length > 0 && (
+                          <div className="search-suggestions">
+                            {sugestoesClientesDetalhes.map((cliente) => (
+                              <button
+                                key={cliente.id}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  setClienteDetalhesBusca(clienteLabel(cliente));
+                                  setFormDetalhes({ ...formDetalhes, clienteId: String(cliente.id) });
+                                  setClienteDetalhesFocado(false);
+                                }}
+                              >
+                                <strong>{cliente.nome}</strong>
+                                {cliente.telefone && <span>{cliente.telefone}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                <button
-                  type="button"
-                  className="btn btn-outline-danger"
-                  disabled={detalheFinalizado}
-                  onClick={() => {
-                    setMotivoCancelamento("");
-                    setCancelamentoAberto(true);
-                  }}
-                >
-                  Cancelamento
-                </button>
+                      <div className="col-md-12 search-field">
+                        <label>Procedimento</label>
+                        <input
+                          className="form-control"
+                          value={servicoDetalhesBusca}
+                          onChange={(e) => {
+                            const texto = e.target.value;
+                            const servico = encontrarPorLabel(servicos, texto, servicoLabel);
+                            setServicoDetalhesBusca(texto);
+                            setFormDetalhes({ ...formDetalhes, servicoId: servico?.id ? String(servico.id) : "" });
+                          }}
+                          onFocus={() => setServicoDetalhesFocado(true)}
+                          onBlur={() => setTimeout(() => setServicoDetalhesFocado(false), 120)}
+                          placeholder="Digite o procedimento"
+                          required
+                        />
+                        {servicoDetalhesFocado && sugestoesServicosDetalhes.length > 0 && (
+                          <div className="search-suggestions">
+                            {sugestoesServicosDetalhes.map((servico) => (
+                              <button
+                                key={servico.id}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  setServicoDetalhesBusca(servicoLabel(servico));
+                                  setFormDetalhes({ ...formDetalhes, servicoId: String(servico.id) });
+                                  setServicoDetalhesFocado(false);
+                                }}
+                              >
+                                <strong>{servico.nome}</strong>
+                                {servico.areaAplicacao && <span>{servico.areaAplicacao}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                <button type="button" className="btn btn-primary" onClick={iniciarAtendimento} disabled={detalheFinalizado}>
-                  Iniciar atendimento
-                </button>
-              </div>
+                      <div className="col-md-12">
+                        <label>Profissional</label>
+                        <select
+                          className="form-select"
+                          value={formDetalhes.profissionalId}
+                          onChange={(e) => setFormDetalhes({ ...formDetalhes, profissionalId: e.target.value })}
+                        >
+                          <option value="">Sem profissional</option>
+                          {profissionais.map((profissional) => (
+                            <option key={profissional.id} value={profissional.id}>
+                              {profissional.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="col-md-6">
+                        <label>Data</label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={formDetalhes.dataAtendimento}
+                          onChange={(e) => setFormDetalhes({ ...formDetalhes, dataAtendimento: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="col-md-6">
+                        <label>Horário</label>
+                        <input
+                          type="time"
+                          className="form-control"
+                          value={formDetalhes.horarioAtendimento}
+                          onChange={(e) => setFormDetalhes({ ...formDetalhes, horarioAtendimento: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="col-md-6">
+                        <label>Tipo</label>
+                        <select
+                          className="form-select"
+                          value={formDetalhes.tipoConsulta}
+                          onChange={(e) => setFormDetalhes({ ...formDetalhes, tipoConsulta: e.target.value })}
+                        >
+                          <option value="PrimeiraConsulta">Primeiro atendimento</option>
+                          <option value="Retorno">Retorno</option>
+                        </select>
+                      </div>
+
+                      <div className="col-md-6">
+                        <label>Status</label>
+                        <select
+                          className="form-select"
+                          value={formDetalhes.status}
+                          onChange={(e) => setFormDetalhes({ ...formDetalhes, status: e.target.value })}
+                        >
+                          <option value="Agendado">Agendado</option>
+                          <option value="Em atendimento">Em atendimento</option>
+                          <option value="Finalizado">Finalizado</option>
+                          <option value="Cancelado">Cancelado</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-footer agenda-detail-actions">
+                  {!editandoDetalhes ? (
+                    <>
+                      <button type="button" className="btn btn-outline-secondary" onClick={() => setDetalhesAberto(false)}>
+                        Ok
+                      </button>
+
+                      <button type="button" className="btn btn-outline-primary" onClick={() => setEditandoDetalhes(true)}>
+                        Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger"
+                        disabled={detalheFinalizado}
+                        onClick={() => {
+                          setMotivoCancelamento("");
+                          setCancelamentoAberto(true);
+                        }}
+                      >
+                        Cancelamento
+                      </button>
+
+                      <button type="button" className="btn btn-primary" onClick={iniciarAtendimento} disabled={detalheFinalizado}>
+                        Iniciar atendimento
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="btn btn-light" onClick={() => setEditandoDetalhes(false)}>
+                        Cancelar edição
+                      </button>
+
+                      <button type="submit" className="btn btn-primary">
+                        Salvar alterações
+                      </button>
+                    </>
+                  )}
+                </div>
+              </form>
             </div>
           </div>
         </div>

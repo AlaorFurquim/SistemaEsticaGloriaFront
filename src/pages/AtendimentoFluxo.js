@@ -18,10 +18,41 @@ const itemReceitaVazio = {
   observacoes: ""
 };
 
+const anamneseInicial = {
+  queixaPrincipal: "",
+  objetivoTratamento: "",
+  gestanteOuLactante: false,
+  alergias: false,
+  descricaoAlergias: "",
+  usaMedicamentos: false,
+  medicamentosEmUso: "",
+  doencasCronicas: false,
+  descricaoDoencas: "",
+  procedimentoEsteticoRecente: false,
+  procedimentosRecentes: "",
+  contraindicacaoDeclarada: false,
+  contraindicacoes: "",
+  habitosCuidados: "",
+  observacoes: ""
+};
+
 const inicial = {
+  cadastroNome: "",
+  cadastroTelefone: "",
+  cadastroDocumento: "",
+  cadastroEmail: "",
+  cadastroDataNascimento: "",
+  cadastroEndereco: "",
+  cadastroObservacoes: "",
+  cadastroServicoId: "",
+  cadastroData: "",
+  cadastroHorario: "",
+  cadastroValor: "",
+  cadastroDesconto: "0",
   queixas: "",
   profissionalId: "",
   anamnese: "",
+  anamneseFicha: { ...anamneseInicial },
   fotosAnamnese: [],
   orcamentoStatus: "aprovado",
   valor: "",
@@ -60,6 +91,21 @@ function dataHora(valor) {
   return new Date(valor).toLocaleString("pt-BR");
 }
 
+function toInputDateTime(valor) {
+  if (!valor) return "";
+  const data = new Date(valor);
+  data.setMinutes(data.getMinutes() - data.getTimezoneOffset());
+  return data.toISOString().slice(0, 16);
+}
+
+function toInputDate(valor) {
+  return toInputDateTime(valor).slice(0, 10);
+}
+
+function toInputTime(valor) {
+  return toInputDateTime(valor).slice(11, 16);
+}
+
 function parseFormJson(json) {
   if (!json) return {};
   try {
@@ -67,6 +113,24 @@ function parseFormJson(json) {
   } catch {
     return {};
   }
+}
+
+function valorPreenchido(...valores) {
+  const encontrado = valores.find((valor) => valor !== null && valor !== undefined && String(valor).trim() !== "");
+  return encontrado === undefined ? "" : encontrado;
+}
+
+const nomeLabel = (item) => String(item?.nome || "").trim();
+
+function encontrarPorNome(lista, texto) {
+  const normalizado = String(texto || "").trim().toLowerCase();
+  if (!normalizado) return null;
+
+  return lista.find((item) =>
+    String(item.id) === normalizado ||
+    nomeLabel(item).toLowerCase() === normalizado ||
+    nomeLabel(item).toLowerCase().startsWith(normalizado)
+  ) || null;
 }
 
 function enviarTermoWhatsApp(cliente, linkTermo) {
@@ -100,6 +164,8 @@ export default function AtendimentoFluxo() {
   const [arquivos, setArquivos] = useState({ anamnese: [], antes: [], depois: [] });
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [servicoCadastroBusca, setServicoCadastroBusca] = useState("");
+  const [profissionalCadastroBusca, setProfissionalCadastroBusca] = useState("");
 
   const cliente = atendimento?.cliente || {};
   const servico = atendimento?.servico || {};
@@ -137,6 +203,7 @@ export default function AtendimentoFluxo() {
       const salvo = parseFormJson(fluxo.formJson);
       const linkTermo = fluxo.tokenAceite ? `${window.location.origin}/aceite/${fluxo.tokenAceite}` : "";
       const servico = atendimentoRes.data.servico;
+      const paciente = atendimentoRes.data.cliente || {};
       const itensPadrao = servico?.id
         ? [{
             produtoId: null,
@@ -156,10 +223,29 @@ export default function AtendimentoFluxo() {
       setOpcoesOrcamento(opcoesRes.data || []);
       setProfissionais(profissionaisRes.data || []);
       setPassoAtual(Number(fluxo.passoAtual || 0));
+      const cadastroServicoId = valorPreenchido(salvo.cadastroServicoId, servico?.id ? String(servico.id) : "");
+      const cadastroProfissionalId = valorPreenchido(salvo.profissionalId, atendimentoRes.data.profissionalId ? String(atendimentoRes.data.profissionalId) : "");
+      const servicoCadastro = (opcoesRes.data || []).find((item) => item.tipo === "SERVICO" && String(item.id) === String(cadastroServicoId));
+      const profissionalCadastro = (profissionaisRes.data || []).find((item) => String(item.id) === String(cadastroProfissionalId));
+      setServicoCadastroBusca(nomeLabel(servicoCadastro || servico));
+      setProfissionalCadastroBusca(nomeLabel(profissionalCadastro || atendimentoRes.data.profissional));
       setForm({
         ...inicial,
         ...salvo,
-        profissionalId: salvo.profissionalId ?? (atendimentoRes.data.profissionalId ? String(atendimentoRes.data.profissionalId) : ""),
+        cadastroNome: valorPreenchido(salvo.cadastroNome, paciente.nome),
+        cadastroTelefone: valorPreenchido(salvo.cadastroTelefone, paciente.telefone),
+        cadastroDocumento: valorPreenchido(salvo.cadastroDocumento, paciente.documento),
+        cadastroEmail: valorPreenchido(salvo.cadastroEmail, paciente.email),
+        cadastroDataNascimento: valorPreenchido(salvo.cadastroDataNascimento, paciente.dataNascimento ? toInputDate(paciente.dataNascimento) : ""),
+        cadastroEndereco: valorPreenchido(salvo.cadastroEndereco, paciente.endereco),
+        cadastroObservacoes: valorPreenchido(salvo.cadastroObservacoes, paciente.observacoes),
+        cadastroServicoId,
+        cadastroData: valorPreenchido(salvo.cadastroData, toInputDate(atendimentoRes.data.dataHora)),
+        cadastroHorario: valorPreenchido(salvo.cadastroHorario, toInputTime(atendimentoRes.data.dataHora)),
+        cadastroValor: valorPreenchido(salvo.cadastroValor, atendimentoRes.data.valorFinal, atendimentoRes.data.valor, servico?.valor, "0"),
+        cadastroDesconto: valorPreenchido(salvo.cadastroDesconto, atendimentoRes.data.desconto, "0"),
+        anamneseFicha: { ...anamneseInicial, ...(salvo.anamneseFicha || {}) },
+        profissionalId: cadastroProfissionalId,
         orcamentoItens: salvo.orcamentoItens?.length ? salvo.orcamentoItens : itensPadrao,
         valor: salvo.valor ?? String((salvo.orcamentoItens?.length ? salvo.orcamentoItens : itensPadrao).reduce((soma, item) => soma + Number(item.total || 0), 0)),
         linkTermo,
@@ -179,6 +265,16 @@ export default function AtendimentoFluxo() {
 
   function alterar(campo, valor) {
     setForm((atual) => ({ ...atual, [campo]: valor }));
+  }
+
+  function alterarAnamnese(campo, valor) {
+    setForm((atual) => ({
+      ...atual,
+      anamneseFicha: {
+        ...atual.anamneseFicha,
+        [campo]: valor
+      }
+    }));
   }
 
   function alterarItemReceita(index, campo, valor) {
@@ -236,12 +332,31 @@ export default function AtendimentoFluxo() {
     alterar(campo, lista.map((file) => file.name));
   }
 
+  function resumirAnamneseFicha(ficha = {}) {
+    const alertas = [
+      ficha.gestanteOuLactante && "Gestante ou lactante",
+      ficha.alergias && `Alergias: ${ficha.descricaoAlergias || "sim"}`,
+      ficha.usaMedicamentos && `Medicamentos: ${ficha.medicamentosEmUso || "sim"}`,
+      ficha.doencasCronicas && `Doenças/condições: ${ficha.descricaoDoencas || "sim"}`,
+      ficha.procedimentoEsteticoRecente && `Procedimentos recentes: ${ficha.procedimentosRecentes || "sim"}`,
+      ficha.contraindicacaoDeclarada && `Contraindicações: ${ficha.contraindicacoes || "sim"}`
+    ].filter(Boolean);
+
+    return [
+      ficha.queixaPrincipal && `Queixa principal: ${ficha.queixaPrincipal}`,
+      ficha.objetivoTratamento && `Objetivo do tratamento: ${ficha.objetivoTratamento}`,
+      alertas.length ? `Alertas: ${alertas.join("; ")}` : "",
+      ficha.habitosCuidados && `Hábitos e cuidados: ${ficha.habitosCuidados}`,
+      ficha.observacoes && `Observações: ${ficha.observacoes}`
+    ].filter(Boolean).join("\n");
+  }
+
   function montarRegistro(proximoPasso = passoAtual) {
     return {
       passoAtual: proximoPasso,
       formJson: JSON.stringify(form),
       queixas: form.queixas,
-      anamnese: form.anamnese,
+      anamnese: resumirAnamneseFicha(form.anamneseFicha) || form.anamnese,
       orcamentoStatus: form.orcamentoStatus,
       justificativaOrcamentoNegado: form.justificativaOrcamentoNegado,
       contratoTexto: contrato,
@@ -256,10 +371,33 @@ export default function AtendimentoFluxo() {
 
   const subtotalOrcamento = (form.orcamentoItens || []).reduce((soma, item) => soma + Number(item.total || 0), 0);
   const totalOrcamento = subtotalOrcamento - toNumber(form.desconto);
+  const servicosFluxo = opcoesOrcamento.filter((item) => item.tipo === "SERVICO");
 
   async function salvarFluxo(proximoPasso = passoAtual) {
     const res = await api.put(`/atendimentos/${id}/fluxo`, montarRegistro(proximoPasso));
     setRegistro(res.data);
+  }
+
+  async function salvarCadastroAtendimento() {
+    const servicoSelecionado = encontrarPorNome(servicosFluxo, servicoCadastroBusca);
+    const profissionalSelecionadoCadastro = encontrarPorNome(profissionais, profissionalCadastroBusca);
+
+    const res = await api.put(`/atendimentos/${id}/cadastro-fluxo`, {
+      nome: form.cadastroNome,
+      telefone: form.cadastroTelefone,
+      documento: form.cadastroDocumento,
+      email: form.cadastroEmail,
+      dataNascimento: form.cadastroDataNascimento || null,
+      endereco: form.cadastroEndereco,
+      observacoes: form.cadastroObservacoes,
+      servicoId: Number(servicoSelecionado?.id || form.cadastroServicoId || atendimento?.servicoId || servico.id),
+      profissionalId: profissionalSelecionadoCadastro?.id ? Number(profissionalSelecionadoCadastro.id) : form.profissionalId ? Number(form.profissionalId) : null,
+      dataHora: `${form.cadastroData}T${form.cadastroHorario}`,
+      valor: toNumber(form.cadastroValor),
+      desconto: toNumber(form.cadastroDesconto)
+    });
+
+    setAtendimento(res.data);
   }
 
   useEffect(() => {
@@ -275,13 +413,35 @@ export default function AtendimentoFluxo() {
   }, [form, passoAtual, contrato]);
 
   function validarPasso() {
-    if (passoAtual === 0 && !form.profissionalId) {
+    if (passoAtual === 0) {
+      if (!form.cadastroNome.trim()) {
+        alertaErro("Informe o nome do paciente.");
+        return false;
+      }
+
+      if (!encontrarPorNome(servicosFluxo, servicoCadastroBusca) && !form.cadastroServicoId) {
+        alertaErro("Selecione o procedimento.");
+        return false;
+      }
+
+      if (!form.cadastroData || !form.cadastroHorario) {
+        alertaErro("Informe data e horario do atendimento.");
+        return false;
+      }
+    }
+
+    if (passoAtual === 0 && !encontrarPorNome(profissionais, profissionalCadastroBusca) && !form.profissionalId) {
       alertaErro("Selecione a profissional responsável pelo atendimento.");
       return false;
     }
 
     if (passoAtual === 1 && !form.queixas.trim()) {
       alertaErro("Informe as queixas do paciente.");
+      return false;
+    }
+
+    if (passoAtual === 2 && !form.anamneseFicha.queixaPrincipal.trim()) {
+      alertaErro("Informe a queixa principal da anamnese.");
       return false;
     }
 
@@ -329,6 +489,9 @@ export default function AtendimentoFluxo() {
 
     try {
       setSalvando(true);
+      if (passoAtual === 0) {
+        await salvarCadastroAtendimento();
+      }
       await salvarFluxo(destino);
 
       if (passoAtual === 3 && form.orcamentoStatus === "negado") {
@@ -405,13 +568,22 @@ export default function AtendimentoFluxo() {
   async function salvarArquivosDoFluxo() {
     const clienteId = atendimento?.clienteId || atendimento?.cliente?.id;
     const profissionalId = atendimento?.profissionalId || atendimento?.profissional?.id;
+    const anamneseFicha = form.anamneseFicha || {};
+
+    if (anamneseFicha.queixaPrincipal?.trim()) {
+      await api.post("/anamneses", {
+        ...anamneseFicha,
+        clienteId,
+        profissionalId: form.profissionalId ? Number(form.profissionalId) : profissionalId || null
+      });
+    }
 
     if (arquivos.anamnese.length) {
       const data = new FormData();
       data.append("clienteId", clienteId);
       if (profissionalId) data.append("profissionalId", profissionalId);
       data.append("tipoConsulta", atendimento?.retorno ? "Retorno" : "PrimeiraConsulta");
-      data.append("observacoes", `Anamnese do atendimento #${id}\n${form.anamnese || ""}`);
+      data.append("observacoes", `Anamnese do atendimento #${id}\n${resumirAnamneseFicha(form.anamneseFicha) || form.anamnese || ""}`);
       arquivos.anamnese.forEach((file) => data.append("arquivos", file));
       await api.post("/prontuarios", data);
     }
@@ -497,7 +669,93 @@ export default function AtendimentoFluxo() {
           {passoAtual === 0 && (
             <div className="flow-section">
               <h3>Cadastro</h3>
-              <div className="flow-grid">
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label>Paciente</label>
+                  <input className="form-control" value={form.cadastroNome} onChange={(e) => alterar("cadastroNome", e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label>Telefone</label>
+                  <input className="form-control" value={form.cadastroTelefone} onChange={(e) => alterar("cadastroTelefone", e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label>CPF/documento</label>
+                  <input className="form-control" value={form.cadastroDocumento} onChange={(e) => alterar("cadastroDocumento", e.target.value)} />
+                </div>
+                <div className="col-md-4">
+                  <label>Email</label>
+                  <input type="email" className="form-control" value={form.cadastroEmail} onChange={(e) => alterar("cadastroEmail", e.target.value)} />
+                </div>
+                <div className="col-md-4">
+                  <label>Nascimento</label>
+                  <input type="date" className="form-control" value={form.cadastroDataNascimento} onChange={(e) => alterar("cadastroDataNascimento", e.target.value)} />
+                </div>
+                <div className="col-md-4">
+                  <label>Profissional</label>
+                  <input
+                    className="form-control"
+                    list="profissionais-atendimento-fluxo"
+                    value={profissionalCadastroBusca}
+                    onChange={(e) => {
+                      const texto = e.target.value;
+                      const prof = encontrarPorNome(profissionais, texto);
+                      setProfissionalCadastroBusca(texto);
+                      alterar("profissionalId", prof?.id ? String(prof.id) : "");
+                    }}
+                    placeholder="Digite a profissional"
+                  />
+                  <datalist id="profissionais-atendimento-fluxo">
+                    {profissionais.map((prof) => (
+                      <option key={prof.id} value={nomeLabel(prof)} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="col-md-6">
+                  <label>Endereço</label>
+                  <input className="form-control" value={form.cadastroEndereco} onChange={(e) => alterar("cadastroEndereco", e.target.value)} />
+                </div>
+                <div className="col-md-6">
+                  <label>Procedimento</label>
+                  <input
+                    className="form-control"
+                    list="servicos-atendimento-fluxo"
+                    value={servicoCadastroBusca}
+                    onChange={(e) => {
+                      const texto = e.target.value;
+                      const servicoEscolhido = encontrarPorNome(servicosFluxo, texto);
+                      setServicoCadastroBusca(texto);
+                      alterar("cadastroServicoId", servicoEscolhido?.id ? String(servicoEscolhido.id) : "");
+                    }}
+                    placeholder="Digite o procedimento"
+                  />
+                  <datalist id="servicos-atendimento-fluxo">
+                    {servicosFluxo.map((opcao) => (
+                      <option key={opcao.id} value={nomeLabel(opcao)} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="col-md-3">
+                  <label>Data</label>
+                  <input type="date" className="form-control" value={form.cadastroData} onChange={(e) => alterar("cadastroData", e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label>Horário</label>
+                  <input type="time" className="form-control" value={form.cadastroHorario} onChange={(e) => alterar("cadastroHorario", e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label>Valor</label>
+                  <input type="number" step="0.01" className="form-control" value={form.cadastroValor} onChange={(e) => alterar("cadastroValor", e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label>Desconto</label>
+                  <input type="number" step="0.01" className="form-control" value={form.cadastroDesconto} onChange={(e) => alterar("cadastroDesconto", e.target.value)} />
+                </div>
+                <div className="col-12">
+                  <label>Observações do cadastro</label>
+                  <textarea className="form-control" rows="3" value={form.cadastroObservacoes} onChange={(e) => alterar("cadastroObservacoes", e.target.value)} />
+                </div>
+              </div>
+              <div className="flow-grid d-none">
                 <div><span>Paciente</span><strong>{cliente.nome || "-"}</strong></div>
                 <div><span>Telefone</span><strong>{cliente.telefone || "-"}</strong></div>
                 <div><span>Documento</span><strong>{cliente.documento || "-"}</strong></div>
@@ -528,7 +786,67 @@ export default function AtendimentoFluxo() {
           {passoAtual === 2 && (
             <div className="flow-section">
               <h3>Anamnese com fotos</h3>
-              <textarea className="form-control" rows="7" value={form.anamnese} onChange={(e) => alterar("anamnese", e.target.value)} placeholder="Histórico, alergias, medicações, contraindicações, procedimentos anteriores e observações clínicas." />
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label>Queixa principal</label>
+                  <input className="form-control" value={form.anamneseFicha.queixaPrincipal} onChange={(e) => alterarAnamnese("queixaPrincipal", e.target.value)} />
+                </div>
+                <div className="col-md-6">
+                  <label>Objetivo do tratamento</label>
+                  <input className="form-control" value={form.anamneseFicha.objetivoTratamento} onChange={(e) => alterarAnamnese("objetivoTratamento", e.target.value)} />
+                </div>
+
+                <div className="col-12 anamnese-checks">
+                  {[
+                    ["gestanteOuLactante", "Gestante ou lactante"],
+                    ["alergias", "Possui alergias"],
+                    ["usaMedicamentos", "Usa medicamentos"],
+                    ["doencasCronicas", "Doenças crônicas"],
+                    ["procedimentoEsteticoRecente", "Procedimento recente"],
+                    ["contraindicacaoDeclarada", "Contraindicação declarada"]
+                  ].map(([campo, label]) => (
+                    <label className="form-check" key={campo}>
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        checked={!!form.anamneseFicha[campo]}
+                        onChange={(e) => alterarAnamnese(campo, e.target.checked)}
+                      />
+                      <span className="form-check-label">{label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="col-md-4">
+                  <label>Alergias</label>
+                  <input className="form-control" value={form.anamneseFicha.descricaoAlergias} onChange={(e) => alterarAnamnese("descricaoAlergias", e.target.value)} />
+                </div>
+                <div className="col-md-4">
+                  <label>Medicamentos em uso</label>
+                  <input className="form-control" value={form.anamneseFicha.medicamentosEmUso} onChange={(e) => alterarAnamnese("medicamentosEmUso", e.target.value)} />
+                </div>
+                <div className="col-md-4">
+                  <label>Doenças / condições</label>
+                  <input className="form-control" value={form.anamneseFicha.descricaoDoencas} onChange={(e) => alterarAnamnese("descricaoDoencas", e.target.value)} />
+                </div>
+                <div className="col-md-6">
+                  <label>Procedimentos recentes</label>
+                  <input className="form-control" value={form.anamneseFicha.procedimentosRecentes} onChange={(e) => alterarAnamnese("procedimentosRecentes", e.target.value)} />
+                </div>
+                <div className="col-md-6">
+                  <label>Contraindicações</label>
+                  <input className="form-control" value={form.anamneseFicha.contraindicacoes} onChange={(e) => alterarAnamnese("contraindicacoes", e.target.value)} />
+                </div>
+                <div className="col-md-6">
+                  <label>Hábitos e cuidados</label>
+                  <textarea className="form-control" rows="3" value={form.anamneseFicha.habitosCuidados} onChange={(e) => alterarAnamnese("habitosCuidados", e.target.value)} />
+                </div>
+                <div className="col-md-6">
+                  <label>Observações</label>
+                  <textarea className="form-control" rows="3" value={form.anamneseFicha.observacoes} onChange={(e) => alterarAnamnese("observacoes", e.target.value)} />
+                </div>
+              </div>
+              <textarea className="form-control d-none" rows="7" value={form.anamnese} onChange={(e) => alterar("anamnese", e.target.value)} placeholder="Histórico, alergias, medicações, contraindicações, procedimentos anteriores e observações clínicas." />
               <label className="flow-upload">
                 Fotos da anamnese
                 <input type="file" multiple accept="image/*" onChange={(e) => selecionarArquivos("anamnese", e.target.files, "fotosAnamnese")} />
@@ -621,6 +939,12 @@ export default function AtendimentoFluxo() {
                   <h4>Consentimento</h4>
                   <p>Declaro que recebi informações claras sobre os procedimentos, seus objetivos, possíveis riscos, benefícios, cuidados necessários e alternativas.</p>
                   <p>Autorizo a realização dos procedimentos e serviços listados abaixo, conforme orçamento apresentado e explicado pela profissional responsável.</p>
+                </section>
+
+                <section>
+                  <h4>LGPD e uso de imagem</h4>
+                  <p>Autorizo o registro de fotografias e imagens estritamente necessárias para prontuário, acompanhamento da evolução, comparação de antes e depois, documentação técnica do atendimento e proteção dos direitos da paciente e da profissional.</p>
+                  <p>O uso de imagem para divulgação, redes sociais, portfólio, materiais comerciais ou publicidade será perguntado de forma separada no link de aceite enviado à paciente.</p>
                 </section>
 
                 <section>

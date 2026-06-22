@@ -8,6 +8,8 @@ export default function Atendimentos() {
   const [atendimentos, setAtendimentos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [clienteId, setClienteId] = useState("");
+  const [clienteBusca, setClienteBusca] = useState("");
+  const [clienteBuscaFocado, setClienteBuscaFocado] = useState(false);
   const [status, setStatus] = useState("TODOS");
   const [busca, setBusca] = useState("");
   const [registroAberto, setRegistroAberto] = useState(false);
@@ -39,6 +41,68 @@ export default function Atendimentos() {
     }
 
     return "Atendimento";
+  }
+
+  function formatarTipoProntuario(tipo) {
+    switch (tipo) {
+      case "Retorno":
+        return "Retorno";
+      case "PrimeiraConsulta":
+      case "Primeira Consulta":
+        return "Avaliação inicial";
+      case "Consulta":
+      case "Consulta Normal":
+        return "Procedimento";
+      default:
+        return "Registro";
+    }
+  }
+
+  function clienteLabel(cliente) {
+    return cliente ? `${cliente.nome || ""}${cliente.telefone ? ` - ${cliente.telefone}` : ""}`.trim() : "";
+  }
+
+  function encontrarCliente(texto) {
+    const normalizado = String(texto || "").trim().toLowerCase();
+    if (!normalizado) return null;
+
+    return clientes.find((cliente) => {
+      const label = clienteLabel(cliente).toLowerCase();
+      const nome = String(cliente.nome || "").trim().toLowerCase();
+      const telefone = String(cliente.telefone || "").replace(/\D/g, "");
+      const buscaTelefone = normalizado.replace(/\D/g, "");
+
+      return (
+        String(cliente.id) === normalizado ||
+        label === normalizado ||
+        nome === normalizado ||
+        label.startsWith(normalizado) ||
+        nome.startsWith(normalizado) ||
+        label.includes(normalizado) ||
+        nome.includes(normalizado) ||
+        (buscaTelefone && telefone.includes(buscaTelefone))
+      );
+    }) || null;
+  }
+
+  function filtrarClientes(texto) {
+    const normalizado = String(texto || "").trim().toLowerCase();
+    if (!normalizado) return [];
+
+    return clientes
+      .filter((cliente) => {
+        const label = clienteLabel(cliente).toLowerCase();
+        const documento = String(cliente.documento || "").replace(/\D/g, "");
+        const telefone = String(cliente.telefone || "").replace(/\D/g, "");
+        const buscaNumerica = normalizado.replace(/\D/g, "");
+
+        return (
+          label.includes(normalizado) ||
+          (buscaNumerica && telefone.includes(buscaNumerica)) ||
+          (buscaNumerica && documento.includes(buscaNumerica))
+        );
+      })
+      .slice(0, 8);
   }
 
   function badgeStatus(valor) {
@@ -76,12 +140,45 @@ export default function Atendimentos() {
       setRegistro({
         atendimento: item,
         fluxo: res.data,
-        form: parseJson(res.data?.formJson, {})
+        form: parseJson(res.data?.formJson, {}),
+        prontuarios: prontuariosRes.data || []
       });
       setRegistroFotos({ anamnese: fotosAnamnese, evolucao: fotosEvolucao });
       setRegistroAberto(true);
     } catch (error) {
       alertaErro(error.response?.data || "Não foi possível abrir o registro do atendimento.");
+    }
+  }
+
+  async function abrirFichaCliente(cliente) {
+    if (!cliente?.id) return;
+
+    const atendimentoMaisRecente = atendimentos
+      .filter((item) => String(item.clienteId) === String(cliente.id))
+      .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))[0];
+
+    if (atendimentoMaisRecente) {
+      await abrirRegistro(atendimentoMaisRecente);
+      return;
+    }
+
+    try {
+      const prontuariosRes = await api.get(`/prontuarios/cliente/${cliente.id}`);
+      setRegistro({
+        atendimento: {
+          clienteId: cliente.id,
+          cliente,
+          dataHora: null,
+          status: "Ficha"
+        },
+        fluxo: {},
+        form: {},
+        prontuarios: prontuariosRes.data || []
+      });
+      setRegistroFotos({ anamnese: [], evolucao: [] });
+      setRegistroAberto(true);
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível abrir a ficha do cliente.");
     }
   }
 
@@ -100,6 +197,22 @@ export default function Atendimentos() {
       setTimeout(() => window.print(), 150);
     } catch (error) {
       alertaErro(error.response?.data || "Não foi possível imprimir o termo.");
+    }
+  }
+
+  async function abrirAnexoProntuario(anexo) {
+    try {
+      const res = await api.get(`/prontuarios/anexos/${anexo.id}`, {
+        responseType: "blob"
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: anexo.tipoArquivo })
+      );
+
+      window.open(url, "_blank");
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível abrir o anexo do prontuário.");
     }
   }
 
@@ -206,12 +319,26 @@ export default function Atendimentos() {
   }
 
   const clienteSelecionado = clientes.find((x) => String(x.id) === String(clienteId));
+  const clienteParaFicha = clienteSelecionado || encontrarCliente(clienteBusca);
+  const sugestoesClientes = filtrarClientes(clienteBusca);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
+    const termoCliente = clienteBusca.trim().toLowerCase();
 
     return atendimentos
       .filter((item) => !clienteId || String(item.clienteId) === String(clienteId))
+      .filter((item) => {
+        if (clienteId || !termoCliente) return true;
+
+        const textoCliente = [
+          item.cliente?.nome,
+          item.cliente?.telefone,
+          item.cliente?.documento
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        return textoCliente.includes(termoCliente);
+      })
       .filter((item) => status === "TODOS" || item.status === status)
       .filter((item) => {
         if (!termo) return true;
@@ -230,7 +357,7 @@ export default function Atendimentos() {
         return texto.includes(termo);
       })
       .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
-  }, [atendimentos, busca, clienteId, status]);
+  }, [atendimentos, busca, clienteBusca, clienteId, status]);
 
   const totalAtendimentos = filtrados.length;
   const totalConcluidos = filtrados.filter((x) => x.status === "Concluido").length;
@@ -246,26 +373,46 @@ export default function Atendimentos() {
   return (
     <div>
       <PageHeader
-        title="Atendimentos"
-        subtitle={"Hist\u00f3rico de servi\u00e7os por cliente"}
+        title="Fichas"
+        subtitle={"Pasta do cliente com hist\u00f3rico, atendimentos, prontu\u00e1rios e anexos"}
       />
 
       <div className="panel mb-3">
         <div className="row g-3 align-items-end">
-          <div className="col-md-4">
+          <div className="col-md-4 search-field">
             <label>Cliente</label>
-            <select
-              className="form-select"
-              value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
-            >
-              <option value="">Todos os clientes</option>
-              {clientes.map((cliente) => (
-                <option key={cliente.id} value={cliente.id}>
-                  {cliente.nome}
-                </option>
-              ))}
-            </select>
+            <input
+              className="form-control"
+              value={clienteBusca}
+              onChange={(e) => {
+                const texto = e.target.value;
+                const cliente = encontrarCliente(texto);
+                setClienteBusca(texto);
+                setClienteId(cliente?.id ? String(cliente.id) : "");
+              }}
+              onFocus={() => setClienteBuscaFocado(true)}
+              onBlur={() => setTimeout(() => setClienteBuscaFocado(false), 120)}
+              placeholder="Digite nome, telefone ou documento"
+            />
+            {clienteBuscaFocado && sugestoesClientes.length > 0 && (
+              <div className="search-suggestions">
+                {sugestoesClientes.map((cliente) => (
+                  <button
+                    key={cliente.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setClienteBusca(clienteLabel(cliente));
+                      setClienteId(String(cliente.id));
+                      setClienteBuscaFocado(false);
+                    }}
+                  >
+                    <strong>{cliente.nome}</strong>
+                    {cliente.telefone && <span>{cliente.telefone}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="col-md-3">
@@ -298,11 +445,23 @@ export default function Atendimentos() {
               className="btn btn-light w-100"
               onClick={() => {
                 setClienteId("");
+                setClienteBusca("");
                 setStatus("TODOS");
                 setBusca("");
               }}
             >
               Limpar
+            </button>
+          </div>
+
+          <div className="col-md-12 d-flex justify-content-end">
+            <button
+              type="button"
+              className="btn btn-outline-primary"
+              disabled={!clienteParaFicha}
+              onClick={() => abrirFichaCliente(clienteParaFicha)}
+            >
+              Abrir ficha do cliente
             </button>
           </div>
         </div>
@@ -318,7 +477,7 @@ export default function Atendimentos() {
 
         <div className="col-md-4">
           <div className="metric-card">
-            <span>Atendimentos encontrados</span>
+            <span>Fichas encontradas</span>
             <strong>{totalAtendimentos}</strong>
           </div>
         </div>
@@ -366,7 +525,7 @@ export default function Atendimentos() {
                 </td>
                 <td className="text-end">
                   <button type="button" className="btn btn-light btn-sm" onClick={() => abrirRegistro(item)}>
-                    Registro
+                    Ficha
                   </button>
                 </td>
               </tr>
@@ -375,7 +534,7 @@ export default function Atendimentos() {
             {!filtrados.length && (
               <tr>
                 <td colSpan="8" className="text-center text-muted py-4">
-                  Nenhum atendimento encontrado para a pesquisa.
+                  Nenhuma ficha encontrada para a pesquisa.
                 </td>
               </tr>
             )}
@@ -389,7 +548,7 @@ export default function Atendimentos() {
             <div className="modal-content">
               <div className="modal-header">
                 <div>
-                  <h5 className="modal-title">Registro do atendimento</h5>
+                  <h5 className="modal-title">Ficha do cliente</h5>
                   <small>{registro.atendimento.cliente?.nome || "-"} • {formatarDataHora(registro.atendimento.dataHora)}</small>
                 </div>
                 <button type="button" className="btn-close" onClick={fecharRegistro} />
@@ -420,6 +579,39 @@ export default function Atendimentos() {
                       {detalhe("Anamnese", registro.form.anamnese)}
                     </div>
                   </section>}
+
+                  <section>
+                    <h6>Histórico do prontuário</h6>
+                    {(registro.prontuarios || []).length ? (
+                      <div className="attendance-timeline">
+                        {registro.prontuarios.map((prontuario) => (
+                          <article key={prontuario.id}>
+                            <div>
+                              <strong>{formatarDataHora(prontuario.dataCadastro)}</strong>
+                              <span>{formatarTipoProntuario(prontuario.tipoConsulta)}{prontuario.profissionalNome ? ` • ${prontuario.profissionalNome}` : ""}</span>
+                            </div>
+                            {temValor(prontuario.observacoes) ? <p>{prontuario.observacoes}</p> : null}
+                            {prontuario.anexos?.length ? (
+                              <div className="d-flex flex-wrap gap-2 mt-2">
+                                {prontuario.anexos.map((anexo) => (
+                                  <button
+                                    key={anexo.id}
+                                    type="button"
+                                    className="btn btn-outline-primary btn-sm"
+                                    onClick={() => abrirAnexoProntuario(anexo)}
+                                  >
+                                    {anexo.nomeArquivo}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted mb-0">Nenhum prontuário salvo para este cliente.</p>
+                    )}
+                  </section>
 
                   <section>
                     <h6>Orçamento</h6>
@@ -461,6 +653,7 @@ export default function Atendimentos() {
                     <h6>Termo, LGPD e contrato</h6>
                     <div className="agenda-detail-list">
                       {registro.fluxo?.termoAceito ? detalhe("Aceite LGPD", `Aceito em ${formatarDataHora(registro.fluxo.dataAceiteTermo)}`) : null}
+                      {registro.fluxo?.termoAceito ? detalhe("Uso de imagem", registro.form.autorizaUsoImagem ? "Autorizado para divulgação externa" : "Não autorizado para divulgação externa") : null}
                       {registro.fluxo?.termoConsentimentoId ? detalhe("Termo", `Termo #${registro.fluxo.termoConsentimentoId}`) : null}
                       {detalhe("Link do termo", registro.form.linkTermo)}
                       {detalhe("Contrato", registro.fluxo?.contratoTexto || registro.form.contratoObservacoes, "attendance-preline")}

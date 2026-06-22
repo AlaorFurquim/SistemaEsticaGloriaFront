@@ -4,7 +4,12 @@ import PageHeader from "../components/PageHeader";
 import { alertaErro, alertaSucesso, confirmarAcao, loading, fecharLoading } from "../utils/alerts";
 import { formatarDataHora } from "../utils/masks";
 
-const textoPadrao = `Declaro que recebi informações claras sobre o procedimento, seus objetivos, possíveis riscos, cuidados necessários e alternativas. Autorizo a realização do procedimento descrito e comprometo-me a seguir as orientações recebidas.`;
+const textoPadrao = `Declaro que recebi informações claras sobre o procedimento, seus objetivos, possíveis riscos, cuidados necessários e alternativas. Autorizo a realização do procedimento descrito e comprometo-me a seguir as orientações recebidas.
+
+LGPD e uso de imagem:
+Autorizo o registro de fotografias e imagens estritamente necessárias para prontuário, acompanhamento da evolução, comparação de antes e depois, documentação técnica do atendimento e proteção dos direitos da paciente e da profissional.
+Estou ciente de que dados pessoais, dados de saúde/estética e imagens serão tratados com finalidade específica, segurança, acesso restrito e pelo tempo necessário ao atendimento, podendo solicitar informações, correção, revogação do consentimento aplicável e demais direitos previstos na LGPD.
+O uso de imagem para divulgação externa, redes sociais, portfólio, materiais comerciais ou publicidade somente poderá ocorrer mediante autorização específica e destacada da paciente.`;
 
 const inicial = {
   clienteId: "",

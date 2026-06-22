@@ -45,7 +45,6 @@ export default function Layout() {
   const [menusAbertos, setMenusAbertos] = useState({
     atendimento: true,
     clientes: false,
-    vendas: false,
     estoque: false,
     cadastros: false,
     fiscal: false,
@@ -148,7 +147,7 @@ export default function Layout() {
               onToggle={toggleMenu}
             >
               <MenuLink to="/agenda" icon="📅" onNavigate={fecharMenuMobile}>Agenda</MenuLink>
-              <MenuLink to="/atendimentos" icon="📝" onNavigate={fecharMenuMobile}>Atendimentos</MenuLink>
+              <MenuLink to="/atendimentos" icon="📝" onNavigate={fecharMenuMobile}>Fichas</MenuLink>
               <MenuLink to="/anamneses" icon="📋" onNavigate={fecharMenuMobile}>Anamnese</MenuLink>
               <MenuLink to="/prontuarios" icon="📋" onNavigate={fecharMenuMobile}>Prontuários</MenuLink>
               <MenuLink to="/termos" icon="📄" onNavigate={fecharMenuMobile}>Termos</MenuLink>
@@ -169,19 +168,6 @@ export default function Layout() {
             >
               <MenuLink to="/clientes" icon="👤" onNavigate={fecharMenuMobile}>Cadastro de Clientes</MenuLink>
               <MenuLink to="/aniversariantes" icon="🎂" onNavigate={fecharMenuMobile}>Aniversariantes</MenuLink>
-            </MenuGroup>
-          )}
-
-          {(isAdmin || isGerente || isAtendente) && (
-            <MenuGroup
-              id="vendas"
-              title="Vendas e Caixa"
-              icon="🛒"
-              aberto={menusAbertos.vendas}
-              onToggle={toggleMenu}
-            >
-              <MenuLink to="/pdv" icon="🧾" onNavigate={fecharMenuMobile}>PDV</MenuLink>
-              <MenuLink to="/caixa" icon="💵" onNavigate={fecharMenuMobile}>Caixa</MenuLink>
             </MenuGroup>
           )}
 
@@ -209,7 +195,6 @@ export default function Layout() {
             >
               <MenuLink to="/profissionais" icon="💇" onNavigate={fecharMenuMobile}>Profissionais</MenuLink>
               <MenuLink to="/servicos" icon="✨" onNavigate={fecharMenuMobile}>Serviços</MenuLink>
-              <MenuLink to="/pdvs" icon="🧾" onNavigate={fecharMenuMobile}>PDVs / Terminais</MenuLink>
               <MenuLink to="/configuracao-clinica" icon="🏥" onNavigate={fecharMenuMobile}>Clínica</MenuLink>
             </MenuGroup>
           )}
