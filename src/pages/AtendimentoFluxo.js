@@ -159,7 +159,7 @@ export default function AtendimentoFluxo() {
   const [registro, setRegistro] = useState(null);
   const [profissionais, setProfissionais] = useState([]);
   const [opcoesOrcamento, setOpcoesOrcamento] = useState([]);
-  const [itemOrcamento, setItemOrcamento] = useState({ itemSelecionado: "", quantidade: 1 });
+  const [itemOrcamento, setItemOrcamento] = useState({ itemSelecionado: "", quantidade: "", desconto: "" });
   const [form, setForm] = useState(inicial);
   const [arquivos, setArquivos] = useState({ anamnese: [], antes: [], depois: [] });
   const [carregando, setCarregando] = useState(true);
@@ -294,6 +294,7 @@ export default function AtendimentoFluxo() {
     }
 
     const quantidade = Number(itemOrcamento.quantidade || 1);
+    const descontoDigitado = toNumber(itemOrcamento.desconto);
     const usaMl = selecionado.tipo === "SERVICO" && selecionado.controlaMl;
     const valor = Number(usaMl ? selecionado.valorPorMl : selecionado.valor || 0);
     const descricao = usaMl
@@ -302,6 +303,7 @@ export default function AtendimentoFluxo() {
 
     setForm((atual) => ({
       ...atual,
+      desconto: String(((atual.orcamentoItens || []).length ? toNumber(atual.desconto) : 0) + descontoDigitado),
       orcamentoItens: [
         ...(atual.orcamentoItens || []),
         {
@@ -311,19 +313,29 @@ export default function AtendimentoFluxo() {
           descricao,
           quantidade,
           valorUnitario: valor,
+          desconto: descontoDigitado,
           total: quantidade * valor
         }
       ]
     }));
 
-    setItemOrcamento({ itemSelecionado: "", quantidade: 1 });
+    setItemOrcamento({ itemSelecionado: "", quantidade: "", desconto: "" });
   }
 
   function removerItemOrcamento(index) {
-    setForm((atual) => ({
-      ...atual,
-      orcamentoItens: atual.orcamentoItens.filter((_, idx) => idx !== index)
-    }));
+    setForm((atual) => {
+      const itensRestantes = atual.orcamentoItens.filter((_, idx) => idx !== index);
+      const descontoRemovido = toNumber(atual.orcamentoItens[index]?.desconto);
+      const descontoAtualizado = itensRestantes.length
+        ? Math.max(0, toNumber(atual.desconto) - descontoRemovido)
+        : 0;
+
+      return {
+        ...atual,
+        desconto: String(descontoAtualizado),
+        orcamentoItens: itensRestantes
+      };
+    });
   }
 
   function selecionarArquivos(tipo, files, campo) {
@@ -370,7 +382,11 @@ export default function AtendimentoFluxo() {
   }
 
   const subtotalOrcamento = (form.orcamentoItens || []).reduce((soma, item) => soma + Number(item.total || 0), 0);
-  const totalOrcamento = subtotalOrcamento - toNumber(form.desconto);
+  const descontoDigitando = toNumber(itemOrcamento.desconto);
+  const descontoOrcamento = (form.orcamentoItens || []).length
+    ? Math.min(toNumber(form.desconto), subtotalOrcamento)
+    : 0;
+  const totalOrcamento = Math.max(0, subtotalOrcamento - descontoOrcamento);
   const servicosFluxo = opcoesOrcamento.filter((item) => item.tipo === "SERVICO");
 
   async function salvarFluxo(proximoPasso = passoAtual) {
@@ -886,11 +902,12 @@ export default function AtendimentoFluxo() {
                   </div>
                   <div className="col-md-2">
                     <label>Quantidade / ml</label>
-                    <input type="number" step="0.001" className="form-control" value={itemOrcamento.quantidade} onChange={(e) => setItemOrcamento({ ...itemOrcamento, quantidade: e.target.value })} />
+                    <input type="number" step="0.001" className="form-control" value={itemOrcamento.quantidade} onChange={(e) => setItemOrcamento({ ...itemOrcamento, quantidade: e.target.value })} placeholder="1" />
                   </div>
                   <div className="col-md-2">
-                    <label>Desconto</label>
-                    <input type="number" step="0.01" className="form-control" value={form.desconto} onChange={(e) => alterar("desconto", e.target.value)} />
+                    <label>Desconto aplicado</label>
+                    <input type="number" step="0.01" className="form-control" value={itemOrcamento.desconto} onChange={(e) => setItemOrcamento({ ...itemOrcamento, desconto: e.target.value })} placeholder="0,00" />
+                    {descontoDigitando > 0 && <small className="discount-confirmation">Desconto a lançar: {formatarMoeda(descontoDigitando)}</small>}
                   </div>
                   <div className="col-md-2 d-flex align-items-end">
                     <button type="button" className="btn btn-outline-primary w-100" onClick={adicionarItemOrcamento}>Adicionar</button>
@@ -904,7 +921,10 @@ export default function AtendimentoFluxo() {
                             <td>{item.descricao}</td>
                             <td>{item.quantidade}</td>
                             <td>{formatarMoeda(item.valorUnitario)}</td>
-                            <td>{formatarMoeda(item.total)}</td>
+                            <td>
+                              <strong>{formatarMoeda(item.total)}</strong>
+                              {toNumber(item.desconto) > 0 && <small className="d-block text-success">Desconto: - {formatarMoeda(item.desconto)}</small>}
+                            </td>
                             <td className="text-end">
                               <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => removerItemOrcamento(index)}>Remover</button>
                             </td>
@@ -918,7 +938,20 @@ export default function AtendimentoFluxo() {
                     <textarea className="form-control" rows="3" value={form.orcamentoObservacoes} onChange={(e) => alterar("orcamentoObservacoes", e.target.value)} />
                   </div>
                   <div className="col-12">
-                    <div className="flow-total">Subtotal: {formatarMoeda(subtotalOrcamento)} • Total: {formatarMoeda(totalOrcamento)}</div>
+                    <div className="flow-budget-summary">
+                      <div>
+                        <span>Subtotal</span>
+                        <strong>{formatarMoeda(subtotalOrcamento)}</strong>
+                      </div>
+                      <div className={descontoOrcamento > 0 ? "discount-applied" : ""}>
+                        <span>Desconto aplicado</span>
+                        <strong>- {formatarMoeda(descontoOrcamento)}</strong>
+                      </div>
+                      <div>
+                        <span>Total final</span>
+                        <strong>{formatarMoeda(totalOrcamento)}</strong>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

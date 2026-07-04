@@ -626,6 +626,13 @@ body{background:radial-gradient(circle at top left,rgba(233,216,166,.28),transpa
 .flow-upload{display:grid;gap:8px;border:1px dashed #bd8aa0;background:#fff9fb;border-radius:12px;padding:14px;font-weight:800;color:#3f1222;cursor:pointer}
 .flow-upload input{font-weight:500;color:#1f2937}
 .flow-total{border:1px solid #d6a86f;background:#fffaf1;color:#3f1222;border-radius:12px;padding:14px;font-size:20px;font-weight:900}
+.discount-confirmation{display:block;margin-top:6px;color:#0f7a42;font-weight:800}
+.flow-budget-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;border:1px solid #d6a86f;background:#fffaf1;border-radius:12px;padding:12px}
+.flow-budget-summary div{background:#fff;border:1px solid #eadfd8;border-radius:10px;padding:12px}
+.flow-budget-summary span{display:block;color:#7b6670;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.flow-budget-summary strong{display:block;color:#3f1222;font-size:22px;font-weight:900}
+.flow-budget-summary .discount-applied{border-color:#8fd6aa;background:#f0fff6}
+.flow-budget-summary .discount-applied span,.flow-budget-summary .discount-applied strong{color:#0f7a42}
 .flow-contract{font-family:Consolas,monospace;white-space:pre-wrap}
 .flow-accept{display:grid;gap:4px;border:1px solid #f1c27d;background:#fff8e8;color:#6b3d00;border-radius:12px;padding:14px}
 .flow-accept.ok{border-color:#86efac;background:#f0fdf4;color:#166534}
@@ -1662,6 +1669,10 @@ canvas {
   .flow-actions .btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .flow-budget-summary {
+    grid-template-columns: 1fr;
   }
 }
 
