@@ -64,6 +64,8 @@ export default function PlataformaAdmin() {
   const [alternandoId, setAlternandoId] = useState(null);
   const [pixEmExibicao, setPixEmExibicao] = useState(null);
   const [pixCopiado, setPixCopiado] = useState(false);
+  const [senhaForm, setSenhaForm] = useState({ usuarioId: "", novaSenha: "", confirmarSenha: "" });
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const carregarBi = useCallback(async () => {
     const resposta = await api.get("/plataforma/tenants/bi", { params: { meses: 12 } });
@@ -147,6 +149,8 @@ export default function PlataformaAdmin() {
   async function abrirDetalhe(tenant) {
     setSelecionado(tenant);
     setPixEmExibicao(null);
+    setSenhaForm({ usuarioId: "", novaSenha: "", confirmarSenha: "" });
+    setMostrarSenha(false);
     try {
       const resposta = await api.get(`/plataforma/tenants/${tenant.id}`);
       const dados = resposta.data;
@@ -390,6 +394,27 @@ export default function PlataformaAdmin() {
     await navigator.clipboard.writeText(codigo);
     setPixCopiado(true);
     setTimeout(() => setPixCopiado(false), 1800);
+  }
+
+  async function redefinirSenha(e) {
+    e.preventDefault();
+    if (!selecionado || salvando) return;
+    if (!senhaForm.usuarioId) return alertaErro("Selecione um usuario.");
+    if (senhaForm.novaSenha !== senhaForm.confirmarSenha) return alertaErro("As senhas nao conferem.");
+    if (!window.confirm("Confirmar a redefinicao da senha deste usuario?")) return;
+    try {
+      setSalvando(true);
+      await api.put(`/plataforma/tenants/${selecionado.id}/usuarios/${senhaForm.usuarioId}/senha`, {
+        novaSenha: senhaForm.novaSenha
+      });
+      setSenhaForm((atual) => ({ ...atual, novaSenha: "", confirmarSenha: "" }));
+      setMostrarSenha(false);
+      alertaSucesso("Senha redefinida com sucesso.");
+    } catch (erro) {
+      alertaErro(mensagemErro(erro, "Nao foi possivel redefinir a senha."));
+    } finally {
+      setSalvando(false);
+    }
   }
 
   function sair() {
@@ -671,6 +696,26 @@ export default function PlataformaAdmin() {
                       </article>
                     ))}
                   </div>
+
+                  <details className="platform-detail-section platform-users-section">
+                    <summary>Usuarios e senhas</summary>
+                    <div className="platform-users-list">
+                      {detalhe.usuarios?.map((usuario) => (
+                        <div key={usuario.id}>
+                          <span><strong>{usuario.nome}</strong><small>{usuario.email} · {usuario.perfil}</small></span>
+                          <span className={usuario.ativo ? "user-active" : "user-inactive"}>{usuario.ativo ? "Ativo" : "Inativo"}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <form className="platform-edit-form platform-password-form" onSubmit={redefinirSenha}>
+                      <label>Usuario<select className="form-select" value={senhaForm.usuarioId} onChange={(e) => setSenhaForm((x) => ({ ...x, usuarioId: e.target.value }))} required><option value="">Selecione o usuario</option>{detalhe.usuarios?.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nome} - {usuario.email}</option>)}</select></label>
+                      <label>Nova senha<input type={mostrarSenha ? "text" : "password"} className="form-control" minLength="8" value={senhaForm.novaSenha} onChange={(e) => setSenhaForm((x) => ({ ...x, novaSenha: e.target.value }))} autoComplete="new-password" required /></label>
+                      <label>Confirmar nova senha<input type={mostrarSenha ? "text" : "password"} className="form-control" minLength="8" value={senhaForm.confirmarSenha} onChange={(e) => setSenhaForm((x) => ({ ...x, confirmarSenha: e.target.value }))} autoComplete="new-password" required /></label>
+                      <label className="platform-check"><input type="checkbox" checked={mostrarSenha} onChange={(e) => setMostrarSenha(e.target.checked)} /><span>Mostrar senha digitada</span></label>
+                      <small>A senha deve ter pelo menos 8 caracteres, com letras e numeros.</small>
+                      <button className="btn btn-primary" disabled={salvando}>{salvando ? "Redefinindo..." : "Redefinir senha"}</button>
+                    </form>
+                  </details>
 
                   <details className="platform-detail-section"><summary>Dados cadastrais</summary><form className="platform-edit-form" onSubmit={salvarEmpresa}><label>Empresa<input className="form-control" value={edicao?.nome || ""} onChange={(e) => setEdicao((x) => ({ ...x, nome: e.target.value }))} required /></label><label>Responsável<input className="form-control" value={edicao?.responsavelNome || ""} onChange={(e) => setEdicao((x) => ({ ...x, responsavelNome: e.target.value }))} required /></label><label>E-mail<input type="email" className="form-control" value={edicao?.responsavelEmail || ""} onChange={(e) => setEdicao((x) => ({ ...x, responsavelEmail: e.target.value }))} required /></label><label>Telefone<input className="form-control" value={edicao?.telefone || ""} onChange={(e) => setEdicao((x) => ({ ...x, telefone: e.target.value }))} /></label><label>Fim do teste<input type="datetime-local" className="form-control" value={edicao?.testeExpiraEm || ""} onChange={(e) => setEdicao((x) => ({ ...x, testeExpiraEm: e.target.value }))} /></label><button className="btn btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar dados"}</button></form></details>
                   <details className="platform-detail-section"><summary>Histórico de acesso</summary><div className="platform-history">{detalhe.historico?.length === 0 && <p>Nenhuma alteração registrada.</p>}{detalhe.historico?.map((item) => <article key={item.id}><strong>{item.statusAnterior} → {item.statusNovo}</strong><span>{dataHora(item.alteradoEm)}</span>{item.observacao && <p>{item.observacao}</p>}</article>)}</div></details>
