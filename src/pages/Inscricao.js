@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import api from "../api";
 import { alertaErro, alertaSucesso } from "../utils/alerts";
+import { linkLiberacaoWhatsApp, linkSuporteWhatsApp } from "../utils/whatsappSupport";
 
 const inicial = {
   nomeEmpresa: "",
@@ -16,11 +17,11 @@ const inicial = {
 };
 
 export default function Inscricao() {
-  const navigate = useNavigate();
   const [form, setForm] = useState(inicial);
   const [enviando, setEnviando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [plano, setPlano] = useState({ valorMensalidade: 150, diasTeste: 14 });
+  const [cadastroConcluido, setCadastroConcluido] = useState(null);
 
   useEffect(() => {
     api.get("/publico/configuracao-inscricao")
@@ -41,7 +42,7 @@ export default function Inscricao() {
       const resposta = await api.post("/publico/inscricao", form);
       localStorage.setItem("loginEmail", form.email.trim().toLowerCase());
       alertaSucesso(resposta.data?.mensagem || "Empresa cadastrada.");
-      navigate("/login");
+      setCadastroConcluido({ ...form });
     } catch (erro) {
       alertaErro(erro.response?.data || "Nao foi possivel concluir o cadastro.");
     } finally {
@@ -63,7 +64,17 @@ export default function Inscricao() {
         </div>
       </section>
 
-      <form className="signup-form" onSubmit={cadastrar}>
+      {cadastroConcluido ? (
+        <section className="signup-form signup-success" aria-live="polite">
+          <span className="signup-success-icon">✓</span>
+          <span className="signup-kicker">Cadastro recebido</span>
+          <h2>Agora solicite a liberacao do acesso</h2>
+          <p>Sua empresa foi cadastrada. Envie a mensagem pronta ao suporte para avisar nossa equipe e concluir a liberacao.</p>
+          <div className="signup-success-company"><span>Empresa</span><strong>{cadastroConcluido.nomeEmpresa}</strong><small>{cadastroConcluido.email}</small></div>
+          <a className="btn btn-success signup-whatsapp" href={linkLiberacaoWhatsApp(cadastroConcluido)} target="_blank" rel="noreferrer">Solicitar liberacao pelo WhatsApp</a>
+          <Link className="signup-back" to="/login">Ir para o login</Link>
+        </section>
+      ) : <form className="signup-form" onSubmit={cadastrar}>
         <header>
           <h2>Cadastrar empresa</h2>
           <p>Os dados institucionais poderao ser completados depois.</p>
@@ -116,7 +127,8 @@ export default function Inscricao() {
           {enviando ? "Criando sua empresa..." : "Criar minha conta"}
         </button>
         <Link className="signup-back" to="/login">Voltar para o login</Link>
-      </form>
+        <a className="signup-support-link" href={linkSuporteWhatsApp("Ola! Preciso de ajuda para cadastrar minha empresa na plataforma Lap Beauty.")} target="_blank" rel="noreferrer">Precisa de ajuda? Fale com o suporte</a>
+      </form>}
     </main>
   );
 }
