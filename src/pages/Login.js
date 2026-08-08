@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import api from "../api";
 import { alertaErro } from "../utils/alerts";
 import { aplicarTemaBase, aplicarTemaCompleto, obterIniciais, useTenantTheme } from "../utils/theme";
+import { linkSuporteWhatsApp } from "../utils/whatsappSupport";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -185,6 +186,7 @@ export default function Login() {
           <span>Ainda nao possui uma conta?</span>
           <Link to="/inscricao">Cadastrar minha empresa</Link>
         </div>
+        <a className="login-support-link" href={linkSuporteWhatsApp()} target="_blank" rel="noreferrer">Falar com o suporte pelo WhatsApp</a>
 
         <div className="login-footer">
           <small>&copy; {new Date().getFullYear()} Lap Beauty</small>
@@ -222,6 +224,7 @@ export default function Login() {
               <p className="billing-pix-unavailable">O PIX ainda não foi configurado. Entre em contato com o suporte para regularizar a mensalidade.</p>
             )}
             <p className="billing-login-note">Após o pagamento, a plataforma precisa registrar a baixa para liberar o sistema.</p>
+            <a className="btn btn-success billing-support-button" href={linkSuporteWhatsApp("Ola! Preciso de ajuda para regularizar e liberar o acesso da minha empresa na plataforma Lap Beauty.")} target="_blank" rel="noreferrer">Falar com o suporte</a>
           </section>
         </div>
       )}

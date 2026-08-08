@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
 import { aplicarTemaCompleto, limparTema, obterIniciais, useTenantTheme } from "../utils/theme";
+import { linkSuporteWhatsApp } from "../utils/whatsappSupport";
 
 function MenuLink({ to, icon, children, onNavigate }) {
   const location = useLocation();
@@ -244,9 +245,10 @@ export default function Layout() {
           )}
         </nav>
 
-        <button className="btn btn-light btn-sm logout-button" onClick={sair}>
-          Sair do sistema
-        </button>
+        <div className="sidebar-footer-actions">
+          <a className="btn btn-outline-light btn-sm support-button" href={linkSuporteWhatsApp()} target="_blank" rel="noreferrer">Suporte pelo WhatsApp</a>
+          <button className="btn btn-light btn-sm logout-button" onClick={sair}>Sair do sistema</button>
+        </div>
       </aside>
 
       <main className="content">

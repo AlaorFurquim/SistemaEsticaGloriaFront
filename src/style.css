@@ -1847,6 +1847,8 @@ canvas {
 .signup-wide,.tenant-wide{grid-column:1/-1}
 .signup-submit{width:100%;min-height:44px;margin-top:20px}
 .signup-back{display:block;text-align:center;color:var(--primary);font-weight:800;text-decoration:none;margin-top:14px}
+.signup-support-link,.login-support-link{display:block;margin-top:12px;text-align:center;color:#187448;font-size:13px;font-weight:800;text-decoration:none}.signup-success{display:block}.signup-success-icon{display:grid;place-items:center;width:48px;height:48px;margin-bottom:18px;border-radius:50%;background:#e7f7ed;color:#187448;font-size:25px;font-weight:900}.signup-success>p{max-width:560px;color:#5f4a52;line-height:1.55}.signup-success-company{display:grid;gap:3px;margin:22px 0;padding:16px;border:1px solid #dccda9;border-radius:6px;background:#fff}.signup-success-company span{color:#735b26;font-size:11px;font-weight:900;text-transform:uppercase}.signup-success-company small{color:#705963}.signup-whatsapp{display:flex;align-items:center;justify-content:center;width:100%;min-height:46px}.login-support-link{color:#187448}.billing-support-button{display:flex;justify-content:center;width:100%;margin-top:12px}
+.sidebar-footer-actions{display:grid;gap:8px;margin-top:auto;padding-top:14px}.sidebar-footer-actions .support-button,.sidebar-footer-actions .logout-button{width:100%;margin:0}.support-button{white-space:normal}
 
 .platform-page{min-height:100vh;background:#f4f5f7;padding:28px;color:#17202a}
 .platform-topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;max-width:1500px;margin:0 auto 20px}
@@ -2016,3 +2018,5 @@ canvas {
 }
 .brand-monogram{flex:0 0 auto;border:1px solid rgba(255,255,255,.36)}
 .login-logo-monogram{display:grid!important;place-items:center;background:var(--primary);color:#fff;font-size:24px;font-weight:900}
+.sidebar-footer-actions{position:fixed;left:24px;bottom:max(18px,env(safe-area-inset-bottom));z-index:3;width:230px;padding-top:10px;background:var(--sidebar)}.sidebar-footer-actions .logout-button{position:static!important;inset:auto!important;width:100%!important}.main-menu{padding-bottom:132px}
+@media(max-width:900px){.sidebar-footer-actions{position:absolute;left:18px;right:18px;width:auto;bottom:max(18px,env(safe-area-inset-bottom))}}
