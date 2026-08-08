@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
 import { alertaErro, alertaSucesso } from "../utils/alerts";
@@ -20,6 +20,16 @@ export default function Inscricao() {
   const [form, setForm] = useState(inicial);
   const [enviando, setEnviando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [plano, setPlano] = useState({ valorMensalidade: 150, diasTeste: 14 });
+
+  useEffect(() => {
+    api.get("/publico/configuracao-inscricao")
+      .then((resposta) => setPlano({
+        valorMensalidade: Number(resposta.data?.valorMensalidade || 150),
+        diasTeste: Number(resposta.data?.diasTeste ?? 14)
+      }))
+      .catch(() => {});
+  }, []);
 
   const alterar = (campo, valor) => setForm((atual) => ({ ...atual, [campo]: valor }));
 
@@ -58,6 +68,14 @@ export default function Inscricao() {
           <h2>Cadastrar empresa</h2>
           <p>Os dados institucionais poderao ser completados depois.</p>
         </header>
+
+        <div className="signup-plan-summary">
+          <div>
+            <span>Mensalidade padrão</span>
+            <strong>{plano.valorMensalidade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}<small>/mês</small></strong>
+          </div>
+          <p>{plano.diasTeste > 0 ? `${plano.diasTeste} dias de teste antes da primeira cobrança.` : "Cobrança iniciada após a contratação."}</p>
+        </div>
 
         <div className="signup-grid">
           <label className="signup-wide">Nome da empresa
