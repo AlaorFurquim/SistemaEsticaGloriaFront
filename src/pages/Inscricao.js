@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
 import api from "../api";
 import { alertaErro, alertaSucesso } from "../utils/alerts";
 import { linkLiberacaoWhatsApp, linkSuporteWhatsApp } from "../utils/whatsappSupport";
@@ -15,6 +16,20 @@ const inicial = {
   cidade: "",
   uf: ""
 };
+
+const criteriosSenha = (senha) => ({
+  tamanho: senha.length >= 8,
+  maiuscula: /[A-Z]/.test(senha),
+  minuscula: /[a-z]/.test(senha),
+  numero: /\d/.test(senha),
+  especial: /[^A-Za-z0-9]/.test(senha)
+});
+
+const mascararCnpj = (valor) => valor.replace(/\D/g, "").slice(0, 14)
+  .replace(/^(\d{2})(\d)/, "$1.$2")
+  .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+  .replace(/\.(\d{3})(\d)/, ".$1/$2")
+  .replace(/(\d{4})(\d)/, "$1-$2");
 
 export default function Inscricao() {
   const [form, setForm] = useState(inicial);
@@ -33,16 +48,18 @@ export default function Inscricao() {
   }, []);
 
   const alterar = (campo, valor) => setForm((atual) => ({ ...atual, [campo]: valor }));
+  const senhaValida = Object.values(criteriosSenha(form.senha)).every(Boolean);
 
   async function cadastrar(e) {
     e.preventDefault();
     if (enviando) return;
+    if (!senhaValida) return alertaErro("Crie uma senha forte atendendo a todos os requisitos.");
     try {
       setEnviando(true);
       const resposta = await api.post("/publico/inscricao", form);
       localStorage.setItem("loginEmail", form.email.trim().toLowerCase());
       alertaSucesso(resposta.data?.mensagem || "Empresa cadastrada.");
-      setCadastroConcluido({ ...form });
+      setCadastroConcluido({ dados: { ...form }, cobranca: resposta.data?.cobranca || null });
     } catch (erro) {
       alertaErro(erro.response?.data || "Nao foi possivel concluir o cadastro.");
     } finally {
@@ -70,9 +87,16 @@ export default function Inscricao() {
           <span className="signup-kicker">Cadastro recebido</span>
           <h2>Agora solicite a liberacao do acesso</h2>
           <p>Sua empresa foi cadastrada. Envie a mensagem pronta ao suporte para avisar nossa equipe e concluir a liberacao.</p>
-          <div className="signup-success-company"><span>Empresa</span><strong>{cadastroConcluido.nomeEmpresa}</strong><small>{cadastroConcluido.email}</small></div>
-          <a className="btn btn-success signup-whatsapp" href={linkLiberacaoWhatsApp(cadastroConcluido)} target="_blank" rel="noreferrer">Solicitar liberacao pelo WhatsApp</a>
-          <Link className="signup-back" to="/login">Ir para o login</Link>
+          <div className="signup-success-company"><span>Empresa</span><strong>{cadastroConcluido.dados.nomeEmpresa}</strong><small>{cadastroConcluido.dados.email}</small></div>
+          {cadastroConcluido.cobranca?.pixConfigurado && cadastroConcluido.cobranca?.pixCopiaECola ? (
+            <div className="signup-payment">
+              <QRCodeSVG value={cadastroConcluido.cobranca.pixCopiaECola} size={210} level="M" />
+              <div><span>Primeira mensalidade</span><strong>{Number(cadastroConcluido.cobranca.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>Vencimento em {new Date(cadastroConcluido.cobranca.vencimento).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</small><textarea value={cadastroConcluido.cobranca.pixCopiaECola} readOnly /><button type="button" className="btn btn-outline-dark" onClick={() => navigator.clipboard.writeText(cadastroConcluido.cobranca.pixCopiaECola)}>Copiar codigo PIX</button></div>
+            </div>
+          ) : <p className="signup-payment-warning">O PIX ainda nao esta disponivel. Fale com o suporte para concluir a liberacao.</p>}
+          <p className="signup-payment-note">Depois do pagamento, avise nossa equipe. O acesso sera liberado assim que confirmarmos o recebimento.</p>
+          <a className="btn btn-success signup-whatsapp" href={linkLiberacaoWhatsApp(cadastroConcluido.dados)} target="_blank" rel="noreferrer">Avisar pagamento pelo WhatsApp</a>
+          <Link className="btn btn-primary signup-paid-button" to="/login">Ja paguei</Link>
         </section>
       ) : <form className="signup-form" onSubmit={cadastrar}>
         <header>
@@ -108,9 +132,12 @@ export default function Inscricao() {
                 {mostrarSenha ? "🙈" : "👁️"}
               </button>
             </div>
+            <ul className="password-requirements">
+              {Object.entries({ tamanho: "8 ou mais caracteres", maiuscula: "Uma letra maiuscula", minuscula: "Uma letra minuscula", numero: "Um numero", especial: "Um caractere especial" }).map(([chave, texto]) => <li className={criteriosSenha(form.senha)[chave] ? "valid" : ""} key={chave}>{texto}</li>)}
+            </ul>
           </label>
           <label>CNPJ
-            <input className="form-control" value={form.cnpj} onChange={(e) => alterar("cnpj", e.target.value)} />
+            <input className="form-control" inputMode="numeric" placeholder="00.000.000/0000-00" maxLength={18} value={form.cnpj} onChange={(e) => alterar("cnpj", mascararCnpj(e.target.value))} />
           </label>
           <label className="signup-wide">Endereco
             <input className="form-control" value={form.endereco} onChange={(e) => alterar("endereco", e.target.value)} />
