@@ -3,6 +3,7 @@ import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { alertaErro, alertaSucesso, confirmarAcao, loading, fecharLoading } from "../utils/alerts";
 import { formatarDataHora } from "../utils/masks";
+import { useTenantTheme } from "../utils/theme";
 
 const textoPadrao = `Declaro que recebi informações claras sobre o procedimento, seus objetivos, possíveis riscos, cuidados necessários e alternativas. Autorizo a realização do procedimento descrito e comprometo-me a seguir as orientações recebidas.
 
@@ -24,6 +25,7 @@ const inicial = {
 };
 
 export default function TermosConsentimento() {
+  const tema = useTenantTheme();
   const [lista, setLista] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
@@ -216,10 +218,10 @@ export default function TermosConsentimento() {
       {termoImpressao && (
         <div className="termo-print-area">
           <div className="termo-print-header">
-            <img src="/logo-gloria.jpeg" alt="Glória Couto" />
+            {tema.logoExibicao && <img src={tema.logoExibicao} alt={tema.nome} />}
             <div>
               <h1>{termoImpressao.titulo}</h1>
-              <p>{clinica?.nome || "Glória Couto"} {clinica?.cnpj ? `- CNPJ ${clinica.cnpj}` : ""}</p>
+              <p>{clinica?.nome || tema.nome} {clinica?.cnpj ? `- CNPJ ${clinica.cnpj}` : ""}</p>
               <small>{[clinica?.endereco, clinica?.cidade, clinica?.uf].filter(Boolean).join(" - ")}</small>
             </div>
           </div>

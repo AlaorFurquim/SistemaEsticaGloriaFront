@@ -30,6 +30,8 @@ import CrmLembretes from "./pages/CrmLembretes";
 import EstoqueLotes from "./pages/EstoqueLotes";
 import LgpdLogs from "./pages/LgpdLogs";
 import AlertasOperacionais from "./pages/AlertasOperacionais";
+import Inscricao from "./pages/Inscricao";
+import PlataformaAdmin from "./pages/PlataformaAdmin";
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -92,7 +94,9 @@ const Pages = {
   CrmLembretes: paginaSegura(CrmLembretes, "CrmLembretes"),
   EstoqueLotes: paginaSegura(EstoqueLotes, "EstoqueLotes"),
   LgpdLogs: paginaSegura(LgpdLogs, "LgpdLogs"),
-  AlertasOperacionais: paginaSegura(AlertasOperacionais, "AlertasOperacionais")
+  AlertasOperacionais: paginaSegura(AlertasOperacionais, "AlertasOperacionais"),
+  Inscricao: paginaSegura(Inscricao, "Inscricao"),
+  PlataformaAdmin: paginaSegura(PlataformaAdmin, "PlataformaAdmin")
 };
 
 export default function App() {
@@ -100,7 +104,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Pages.Login />} />
+        <Route path="/inscricao" element={<Pages.Inscricao />} />
         <Route path="/aceite/:token" element={<Pages.AceiteTermoPublico />} />
+        <Route path="/plataforma" element={<ProtectedRoute roles={["PlataformaAdmin"]}><Pages.PlataformaAdmin /></ProtectedRoute>} />
 
         <Route
           path="/"

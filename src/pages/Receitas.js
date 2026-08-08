@@ -9,6 +9,7 @@ import {
   fecharLoading
 } from "../utils/alerts";
 import { formatarDataHora } from "../utils/masks";
+import { useTenantTheme } from "../utils/theme";
 
 const tiposReceita = ["Simples", "Manipulada", "Antimicrobiano", "Controle Especial"];
 
@@ -34,6 +35,7 @@ const inicial = {
 };
 
 export default function Receitas() {
+  const tema = useTenantTheme();
   const [lista, setLista] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
@@ -360,9 +362,9 @@ export default function Receitas() {
         <div className="receita-print-area" key={via}>
           <div className="receita-print-header">
             <div className="receita-print-brand">
-              <img src="/logo-gloria.jpeg" alt="Glória Couto" />
+              {tema.logoExibicao && <img src={tema.logoExibicao} alt={tema.nome} />}
               <div>
-                <strong>{clinica?.nome || "Glória Couto"}</strong>
+                <strong>{clinica?.nome || tema.nome}</strong>
                 <span>{clinica?.cnpj ? `CNPJ ${clinica.cnpj}` : "Estética Avançada"}</span>
                 <small>{[clinica?.endereco, clinica?.cidade, clinica?.uf].filter(Boolean).join(" - ")}</small>
                 <small>{clinica?.telefone}</small>

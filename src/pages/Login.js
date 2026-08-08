@@ -1,16 +1,39 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
 import api from "../api";
 import { alertaErro } from "../utils/alerts";
+import { aplicarTemaBase, aplicarTemaCompleto, obterIniciais, useTenantTheme } from "../utils/theme";
 
 export default function Login() {
   const navigate = useNavigate();
+  const tema = useTenantTheme();
   const emailLembrado = localStorage.getItem("loginEmail") || "";
   const [email, setEmail] = useState(emailLembrado);
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [lembrarAcesso, setLembrarAcesso] = useState(!!emailLembrado);
   const [entrando, setEntrando] = useState(false);
+  const [cobranca, setCobranca] = useState(null);
+  const [pixCopiado, setPixCopiado] = useState(false);
+
+  useEffect(() => {
+    const mensagem = sessionStorage.getItem("mensagemAcesso");
+    if (mensagem) {
+      sessionStorage.removeItem("mensagemAcesso");
+      alertaErro(mensagem);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!email.includes("@") || entrando) return undefined;
+    const timer = setTimeout(() => {
+      api.get("/publico/tema", { params: { email } })
+        .then((res) => aplicarTemaCompleto(res.data))
+        .catch(() => null);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [email, entrando]);
 
   function limparSessaoPreservandoEmail() {
     const emailSalvo = localStorage.getItem("loginEmail");
@@ -27,6 +50,7 @@ export default function Login() {
 
     try {
       setEntrando(true);
+      setCobranca(null);
       limparSessaoPreservandoEmail();
 
       const response = await api.post("/auth/login", {
@@ -40,6 +64,8 @@ export default function Login() {
       localStorage.setItem("nome", response.data.nome);
       localStorage.setItem("email", response.data.email);
       localStorage.setItem("perfil", perfil);
+      if (response.data.tenantId) localStorage.setItem("tenantId", response.data.tenantId);
+      if (response.data.tema) aplicarTemaBase(response.data.tema);
 
       if (lembrarAcesso) {
         localStorage.setItem("loginEmail", email);
@@ -47,7 +73,9 @@ export default function Login() {
         localStorage.removeItem("loginEmail");
       }
 
-      if (perfil === "Administrador" || perfil === "Gerente") {
+      if (perfil === "PlataformaAdmin") {
+        navigate("/plataforma");
+      } else if (perfil === "Administrador" || perfil === "Gerente") {
         navigate("/");
       } else if (perfil === "Atendente") {
         navigate("/agenda");
@@ -59,20 +87,32 @@ export default function Login() {
         navigate("/");
       }
     } catch (error) {
-      alertaErro(
-        error.response?.data ||
-          "E-mail ou senha inv\u00e1lidos. Verifique seus dados e tente novamente."
-      );
+      const dados = error.response?.data;
+      if (dados?.codigo === "MENSALIDADE_VENCIDA" && dados.cobranca) {
+        setCobranca(dados.cobranca);
+      } else {
+        alertaErro(
+          typeof dados === "string" ? dados : dados?.mensagem ||
+            "E-mail ou senha inválidos. Verifique seus dados e tente novamente."
+        );
+      }
     } finally {
       setEntrando(false);
     }
+  }
+
+  async function copiarPix() {
+    if (!cobranca?.pixCopiaECola) return;
+    await navigator.clipboard.writeText(cobranca.pixCopiaECola);
+    setPixCopiado(true);
+    setTimeout(() => setPixCopiado(false), 2000);
   }
 
   return (
     <div className="login-page">
       <div className="login-left">
         <div className="login-overlay">
-          <span>Gl&oacute;ria Couto</span>
+          <span>{tema.nome}</span>
 
           <h1>Gest&atilde;o completa para o seu neg&oacute;cio.</h1>
 
@@ -84,7 +124,9 @@ export default function Login() {
       </div>
 
       <form className="login-card" onSubmit={entrar}>
-        <img className="login-logo-img" src="/logo-gloria.jpeg" alt="Gloria Couto" />
+        {tema.logoExibicao
+          ? <img className="login-logo-img" src={tema.logoExibicao} alt={tema.nome} />
+          : <span className="login-logo-img brand-monogram login-logo-monogram">{obterIniciais(tema.nome)}</span>}
 
         <h2>Acesse sua conta</h2>
 
@@ -139,10 +181,50 @@ export default function Login() {
           {entrando ? "Entrando..." : "Entrar"}
         </button>
 
+        <div className="login-signup-link">
+          <span>Ainda nao possui uma conta?</span>
+          <Link to="/inscricao">Cadastrar minha empresa</Link>
+        </div>
+
         <div className="login-footer">
           <small>&copy; {new Date().getFullYear()} Lap Beauty</small>
         </div>
       </form>
+
+      {cobranca && (
+        <div className="billing-login-backdrop" role="dialog" aria-modal="true" aria-labelledby="billing-login-title">
+          <section className="billing-login-modal">
+            <header>
+              <div>
+                <span>Mensalidade vencida</span>
+                <h2 id="billing-login-title">Regularize para liberar o acesso</h2>
+              </div>
+              <button type="button" className="billing-modal-close" onClick={() => setCobranca(null)} aria-label="Fechar">×</button>
+            </header>
+
+            <div className="billing-login-summary">
+              <div><span>Empresa</span><strong>{cobranca.empresa}</strong></div>
+              <div><span>Vencimento</span><strong>{new Date(cobranca.vencimento).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</strong></div>
+              <div><span>Valor</span><strong>{Number(cobranca.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong></div>
+            </div>
+
+            {cobranca.pixConfigurado && cobranca.pixCopiaECola ? (
+              <div className="billing-login-pix">
+                <QRCodeSVG value={cobranca.pixCopiaECola} size={210} level="M" />
+                <div>
+                  <h3>Pague com PIX</h3>
+                  <p>Leia o QR Code pelo aplicativo do banco ou use o código copia e cola.</p>
+                  <textarea value={cobranca.pixCopiaECola} readOnly aria-label="Código PIX copia e cola" />
+                  <button type="button" className="btn btn-primary" onClick={copiarPix}>{pixCopiado ? "Código copiado" : "Copiar código PIX"}</button>
+                </div>
+              </div>
+            ) : (
+              <p className="billing-pix-unavailable">O PIX ainda não foi configurado. Entre em contato com o suporte para regularizar a mensalidade.</p>
+            )}
+            <p className="billing-login-note">Após o pagamento, a plataforma precisa registrar a baixa para liberar o sistema.</p>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

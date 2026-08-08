@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { formatarDataHora, formatarMoeda } from "../utils/masks";
@@ -22,18 +23,26 @@ export default function NotasFiscais() {
   const [filtroVendas, setFiltroVendas] = useState("");
   const [somentePendentes, setSomentePendentes] = useState(true);
   const [entrada, setEntrada] = useState(inicialEntrada);
+  const [fiscal, setFiscal] = useState(null);
 
   async function carregar() {
     try {
-      const [notasRes, vendasRes] = await Promise.all([
-        api.get("/notas-fiscais"),
-        api.get("/notas-fiscais/vendas-para-emissao", {
+      const fiscalRes = await api.get("/tenant/fiscal");
+      const statusFiscal = fiscalRes.data.status;
+      setFiscal(statusFiscal);
+      setEntrada((atual) => ({ ...atual, cnpj: statusFiscal.cnpj || "" }));
+
+      const requisicoes = [api.get("/notas-fiscais")];
+      if (statusFiscal.habilitada && statusFiscal.configuracaoConcluida) {
+        requisicoes.push(api.get("/notas-fiscais/vendas-para-emissao", {
           params: { filtro: filtroVendas || null, somentePendentes }
-        })
-      ]);
+        }));
+      }
+
+      const [notasRes, vendasRes] = await Promise.all(requisicoes);
 
       setNotas(notasRes.data || []);
-      setVendas(vendasRes.data || []);
+      setVendas(vendasRes?.data || []);
     } catch (error) {
       alertaErro(error.response?.data || "Não foi possível carregar as notas fiscais.");
     }
@@ -172,7 +181,8 @@ async function baixarXml(nota) {
           <p><b>Serviço:</b> gera NFS-e.</p>
           <p><b>Venda mista:</b> gera uma NFC-e para produtos e uma NFS-e para serviços.</p>
           <p><b>Duplicidade:</b> vendas já emitidas ficam bloqueadas; vendas parciais emitem apenas o que falta.</p>
-          <p><b>Emitente:</b> vem do appsettings do backend em AcbrApi:CnpjEmitente.</p>
+          <p><b>Emitente:</b> usa o CNPJ e a configuração fiscal exclusivos desta empresa.</p>
+          <p><b>Franquia:</b> cada nota emitida consome uma unidade do limite mensal contratado.</p>
         </div>
       `
     );
@@ -200,6 +210,11 @@ async function baixarXml(nota) {
     carregar();
   }, [somentePendentes]);
 
+  const podeUsarAcbr = fiscal?.habilitada &&
+    fiscal?.configuracaoConcluida &&
+    fiscal?.plataformaAcbrConfigurada;
+  const podeEmitir = podeUsarAcbr && fiscal?.restantes > 0;
+
   return (
     <div>
       <PageHeader title="Notas Fiscais" subtitle="Emissão fiscal por venda, sem procurar ID manualmente">
@@ -208,6 +223,41 @@ async function baixarXml(nota) {
         </button>
       </PageHeader>
 
+      {fiscal && (
+        <div className="fiscal-contract-strip">
+          <div>
+            <span>Módulo fiscal</span>
+            <strong className={fiscal.habilitada ? "fiscal-enabled" : "fiscal-disabled"}>
+              {fiscal.habilitada ? "Ativo" : "Não contratado"}
+            </strong>
+          </div>
+          <div><span>Plano</span><strong>{fiscal.planoNome || "Sem plano"}</strong></div>
+          <div><span>Uso no mês</span><strong>{fiscal.emitidasNoMes} / {fiscal.limiteMensal}</strong></div>
+          <div><span>Disponíveis</span><strong>{fiscal.restantes}</strong></div>
+          <div><span>Adicional mensal</span><strong>{formatarMoeda(fiscal.valorAdicionalMensal)}</strong></div>
+        </div>
+      )}
+
+      {fiscal && !fiscal.habilitada && (
+        <section className="panel fiscal-module-locked mb-3">
+          <span>Módulo adicional</span>
+          <h2>Emissão fiscal não contratada</h2>
+          <p>Solicite à administração da plataforma a ativação de uma franquia de emissões.</p>
+        </section>
+      )}
+
+      {fiscal?.habilitada && !fiscal.configuracaoConcluida && (
+        <div className="alert alert-warning d-flex justify-content-between align-items-center gap-3 flex-wrap">
+          <span>Complete os dados do emitente antes de emitir notas.</span>
+          <Link className="btn btn-sm btn-outline-dark" to="/configuracao-nfse">Configurar empresa</Link>
+        </div>
+      )}
+
+      {fiscal?.habilitada && !fiscal.plataformaAcbrConfigurada && (
+        <div className="alert alert-danger">A conta técnica da ACBr ainda não está configurada na plataforma.</div>
+      )}
+
+      {fiscal?.habilitada && (
       <div className="panel mb-3">
         <div className="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
           <div>
@@ -265,7 +315,11 @@ async function baixarXml(nota) {
                     type="button"
                     className="btn btn-success btn-sm"
                     onClick={() => emitirVendaCompleta(venda)}
-                    disabled={venda.statusFiscal === "Emitida"}
+                    disabled={
+                      venda.statusFiscal === "Emitida" ||
+                      !podeEmitir ||
+                      fiscal.restantes < ((venda.pendenteProduto ? 1 : 0) + (venda.pendenteServico ? 1 : 0))
+                    }
                   >
                     {venda.statusFiscal === "Parcial" ? "Emitir faltante" : "Emitir"}
                   </button>
@@ -283,7 +337,9 @@ async function baixarXml(nota) {
           </tbody>
         </table>
       </div>
+      )}
 
+      {fiscal?.habilitada && (
       <form className="panel mb-3" onSubmit={sincronizarEntradas}>
         <h5>Sincronizar notas de entrada</h5>
 
@@ -294,6 +350,7 @@ async function baixarXml(nota) {
               className="form-control"
               value={entrada.cnpj}
               onChange={e => setEntrada({ ...entrada, cnpj: e.target.value })}
+              readOnly
               required
             />
           </div>
@@ -320,12 +377,13 @@ async function baixarXml(nota) {
           </div>
 
           <div className="col-md-12 d-flex justify-content-end">
-            <button className="btn btn-primary">
+            <button className="btn btn-primary" disabled={!podeUsarAcbr}>
               Buscar entradas
             </button>
           </div>
         </div>
       </form>
+      )}
 
       <div className="panel">
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -366,11 +424,11 @@ async function baixarXml(nota) {
                 <td>{x.chaveOuCodigo || "-"}</td>
                 <td>
                   <div className="d-flex flex-wrap gap-1">
-                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => consultarStatus(x)} disabled={!x.referenciaNuvemFiscal}>Status</button>
-                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => baixarPdf(x)} disabled={!x.referenciaNuvemFiscal}>PDF</button>
-                    <button type="button" className="btn btn-outline-dark btn-sm" onClick={() => baixarXml(x)} disabled={!x.referenciaNuvemFiscal}>XML</button>
-                    <button type="button" className="btn btn-outline-warning btn-sm" onClick={() => consultarCancelamento(x)} disabled={!x.referenciaNuvemFiscal}>Canc. status</button>
-                    <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => cancelarNota(x)} disabled={!x.referenciaNuvemFiscal}>Cancelar</button>
+                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => consultarStatus(x)} disabled={!x.referenciaNuvemFiscal || !podeUsarAcbr}>Status</button>
+                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => baixarPdf(x)} disabled={!x.referenciaNuvemFiscal || !podeUsarAcbr}>PDF</button>
+                    <button type="button" className="btn btn-outline-dark btn-sm" onClick={() => baixarXml(x)} disabled={!x.referenciaNuvemFiscal || !podeUsarAcbr}>XML</button>
+                    <button type="button" className="btn btn-outline-warning btn-sm" onClick={() => consultarCancelamento(x)} disabled={!x.referenciaNuvemFiscal || !podeUsarAcbr}>Canc. status</button>
+                    <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => cancelarNota(x)} disabled={!x.referenciaNuvemFiscal || !podeUsarAcbr}>Cancelar</button>
                   </div>
                 </td>
               </tr>

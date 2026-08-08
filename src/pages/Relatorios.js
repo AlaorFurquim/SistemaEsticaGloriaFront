@@ -2,8 +2,10 @@ import { useState } from "react";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { formatarMoeda, formatarDataHora } from "../utils/masks";
+import { useTenantTheme } from "../utils/theme";
 
 export default function Relatorios() {
+    const tema = useTenantTheme();
     const [tipo, setTipo] = useState("vendas");
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
@@ -137,7 +139,7 @@ export default function Relatorios() {
                 <div className="report-page">
                     <div className="report-header">
                         <div>
-                            <span>Glória Couto • Estética Avançada</span>
+                            <span>{tema.nome}</span>
                             <h2>{tituloRelatorio()}</h2>
                             <p>
                                 Emitido em {new Date().toLocaleString("pt-BR")}
@@ -145,7 +147,7 @@ export default function Relatorios() {
                         </div>
 
                         <div className="report-logo">
-                            <img src="/logo-gloria.jpeg" alt="Glória Couto" />
+                            {tema.logoExibicao && <img src={tema.logoExibicao} alt={tema.nome} />}
                         </div>
                     </div>
 
@@ -284,7 +286,7 @@ export default function Relatorios() {
                     </div>
 
                     <div className="report-footer">
-                        <span>Glória Couto • Estética Avançada</span>
+                        <span>{tema.nome}</span>
                         <span>Relatório gerado automaticamente pelo sistema.</span>
                     </div>
                 </div>

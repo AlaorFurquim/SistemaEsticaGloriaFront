@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import api from "../api";
+import { aplicarTemaCompleto, limparTema, obterIniciais, useTenantTheme } from "../utils/theme";
 
 function MenuLink({ to, icon, children, onNavigate }) {
   const location = useLocation();
@@ -40,6 +42,7 @@ export default function Layout() {
 
   const nome = localStorage.getItem("nome");
   const perfil = localStorage.getItem("perfil");
+  const tema = useTenantTheme();
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
 
   const [menusAbertos, setMenusAbertos] = useState({
@@ -64,8 +67,15 @@ export default function Layout() {
     if (emailLembrado) {
       localStorage.setItem("loginEmail", emailLembrado);
     }
+    limparTema();
     navigate("/login");
   }
+
+  useEffect(() => {
+    api.get("/tenant/tema")
+      .then((res) => aplicarTemaCompleto(res.data))
+      .catch(() => null);
+  }, []);
 
   useEffect(() => {
     setMenuMobileAberto(false);
@@ -91,10 +101,12 @@ export default function Layout() {
         </button>
 
         <div className="mobile-brand">
-          <img className="mobile-brand-logo" src="/logo-gloria.jpeg" alt="Glória Couto" />
+          {tema.logoExibicao
+            ? <img className="mobile-brand-logo" src={tema.logoExibicao} alt={tema.nome} />
+            : <span className="mobile-brand-logo brand-monogram">{obterIniciais(tema.nome)}</span>}
           <div>
-            <strong>Glória Couto</strong>
-            <span>Estética Avançada</span>
+            <strong>{tema.nome}</strong>
+            <span>Gestao profissional</span>
           </div>
         </div>
       </div>
@@ -119,10 +131,12 @@ export default function Layout() {
         </button>
 
         <div className="brand">
-          <img className="brand-logo" src="/logo-gloria.jpeg" alt="Glória Couto" />
+          {tema.logoExibicao
+            ? <img className="brand-logo" src={tema.logoExibicao} alt={tema.nome} />
+            : <span className="brand-logo brand-monogram">{obterIniciais(tema.nome)}</span>}
           <div>
-            <h4>Glória Couto</h4>
-            <small>Estética Avançada</small>
+            <h4>{tema.nome}</h4>
+            <small>Gestao profissional</small>
           </div>
         </div>
 
@@ -195,7 +209,7 @@ export default function Layout() {
             >
               <MenuLink to="/profissionais" icon="💇" onNavigate={fecharMenuMobile}>Profissionais</MenuLink>
               <MenuLink to="/servicos" icon="✨" onNavigate={fecharMenuMobile}>Serviços</MenuLink>
-              <MenuLink to="/configuracao-clinica" icon="🏥" onNavigate={fecharMenuMobile}>Clínica</MenuLink>
+              <MenuLink to="/configuracao-clinica" icon="🏥" onNavigate={fecharMenuMobile}>Empresa e visual</MenuLink>
             </MenuGroup>
           )}
 
@@ -212,7 +226,7 @@ export default function Layout() {
               <MenuLink to="/alertas" icon="⚠️" onNavigate={fecharMenuMobile}>Alertas</MenuLink>
               <MenuLink to="/financeiro-completo" icon="💳" onNavigate={fecharMenuMobile}>Financeiro</MenuLink>
               <MenuLink to="/crm" icon="💬" onNavigate={fecharMenuMobile}>CRM</MenuLink>
-              <MenuLink to="/configuracao-nfse" icon="🔧" onNavigate={fecharMenuMobile}>Configuração NFS-e</MenuLink>
+              <MenuLink to="/configuracao-nfse" icon="🔧" onNavigate={fecharMenuMobile}>Configuração fiscal</MenuLink>
             </MenuGroup>
           )}
 

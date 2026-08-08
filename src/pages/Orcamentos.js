@@ -9,10 +9,12 @@ import {
   fecharLoading
 } from "../utils/alerts";
 import { formatarMoeda, formatarDataHora } from "../utils/masks";
+import { useTenantTheme } from "../utils/theme";
 
 const formas = ["Dinheiro", "Pix", "Cartão de Crédito", "Cartão de Débito"];
 
 export default function Orcamentos() {
+  const tema = useTenantTheme();
   const [lista, setLista] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
@@ -359,10 +361,10 @@ export default function Orcamentos() {
         <div className="orcamento-print-area">
           <div className="orcamento-print-header">
             <div className="orcamento-print-brand">
-              <img src="/logo-gloria.jpeg" alt="Glória Couto" />
+              {tema.logoExibicao && <img src={tema.logoExibicao} alt={tema.nome} />}
               <div>
-                <strong>Glória Couto</strong>
-                <span>Estética Avançada</span>
+                <strong>{tema.nome}</strong>
+                <span>Documento da empresa</span>
               </div>
             </div>
 

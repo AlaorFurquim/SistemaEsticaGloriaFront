@@ -3,8 +3,10 @@ import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { formatarDataHora, formatarMoeda } from "../utils/masks";
 import { alertaErro } from "../utils/alerts";
+import { useTenantTheme } from "../utils/theme";
 
 export default function Atendimentos() {
+  const tema = useTenantTheme();
   const [atendimentos, setAtendimentos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [clienteId, setClienteId] = useState("");
@@ -753,10 +755,10 @@ export default function Atendimentos() {
       {termoImpressao && (
         <div className="termo-print-area">
           <div className="termo-print-header">
-            <img src="/logo-gloria.jpeg" alt="Glória Couto" />
+            {tema.logoExibicao && <img src={tema.logoExibicao} alt={tema.nome} />}
             <div>
               <h1>{termoImpressao.titulo}</h1>
-              <p>{clinica?.nome || "Glória Couto"} {clinica?.cnpj ? `- CNPJ ${clinica.cnpj}` : ""}</p>
+              <p>{clinica?.nome || tema.nome} {clinica?.cnpj ? `- CNPJ ${clinica.cnpj}` : ""}</p>
               <small>{[clinica?.endereco, clinica?.cidade, clinica?.uf].filter(Boolean).join(" - ")}</small>
             </div>
           </div>

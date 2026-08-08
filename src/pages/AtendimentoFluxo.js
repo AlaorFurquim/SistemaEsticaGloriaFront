@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../api";
+import AnamneseClinicaForm from "../components/AnamneseClinicaForm";
 import PageHeader from "../components/PageHeader";
 import { alertaErro, alertaSucesso } from "../utils/alerts";
+import {
+  criarAnamneseInicial,
+  normalizarAnamnese,
+  prepararPayloadAnamnese,
+  resumirAnamneseFicha
+} from "../utils/anamneseClinica";
 import { formatarMoeda } from "../utils/masks";
 
 const passos = ["Cadastro", "Queixas", "Anamnese", "Orçamento", "Termos", "Contrato", "Fotos", "Receita", "Pagamento"];
@@ -15,24 +22,6 @@ const itemReceitaVazio = {
   quantidade: "",
   posologia: "",
   duracao: "",
-  observacoes: ""
-};
-
-const anamneseInicial = {
-  queixaPrincipal: "",
-  objetivoTratamento: "",
-  gestanteOuLactante: false,
-  alergias: false,
-  descricaoAlergias: "",
-  usaMedicamentos: false,
-  medicamentosEmUso: "",
-  doencasCronicas: false,
-  descricaoDoencas: "",
-  procedimentoEsteticoRecente: false,
-  procedimentosRecentes: "",
-  contraindicacaoDeclarada: false,
-  contraindicacoes: "",
-  habitosCuidados: "",
   observacoes: ""
 };
 
@@ -52,7 +41,7 @@ const inicial = {
   queixas: "",
   profissionalId: "",
   anamnese: "",
-  anamneseFicha: { ...anamneseInicial },
+  anamneseFicha: criarAnamneseInicial(),
   fotosAnamnese: [],
   orcamentoStatus: "aprovado",
   valor: "",
@@ -204,6 +193,16 @@ export default function AtendimentoFluxo() {
       const linkTermo = fluxo.tokenAceite ? `${window.location.origin}/aceite/${fluxo.tokenAceite}` : "";
       const servico = atendimentoRes.data.servico;
       const paciente = atendimentoRes.data.cliente || {};
+      let anamneseBase = salvo.anamneseFicha || {};
+      if (!anamneseBase.queixaPrincipal && paciente.id) {
+        try {
+          const historicoRes = await api.get(`/anamneses?clienteId=${paciente.id}`);
+          anamneseBase = historicoRes.data?.[0] || anamneseBase;
+        } catch {
+          // A ficha pode ser iniciada mesmo quando ainda não existe histórico clínico.
+        }
+      }
+      const procedimentoPretendido = anamneseBase.dadosClinicos?.procedimentoPretendido || servico?.nome || "";
       const itensPadrao = servico?.id
         ? [{
             produtoId: null,
@@ -244,7 +243,7 @@ export default function AtendimentoFluxo() {
         cadastroHorario: valorPreenchido(salvo.cadastroHorario, toInputTime(atendimentoRes.data.dataHora)),
         cadastroValor: valorPreenchido(salvo.cadastroValor, atendimentoRes.data.valorFinal, atendimentoRes.data.valor, servico?.valor, "0"),
         cadastroDesconto: valorPreenchido(salvo.cadastroDesconto, atendimentoRes.data.desconto, "0"),
-        anamneseFicha: { ...anamneseInicial, ...(salvo.anamneseFicha || {}) },
+        anamneseFicha: normalizarAnamnese(anamneseBase, { procedimentoPretendido }),
         profissionalId: cadastroProfissionalId,
         orcamentoItens: salvo.orcamentoItens?.length ? salvo.orcamentoItens : itensPadrao,
         valor: salvo.valor ?? String((salvo.orcamentoItens?.length ? salvo.orcamentoItens : itensPadrao).reduce((soma, item) => soma + Number(item.total || 0), 0)),
@@ -265,16 +264,6 @@ export default function AtendimentoFluxo() {
 
   function alterar(campo, valor) {
     setForm((atual) => ({ ...atual, [campo]: valor }));
-  }
-
-  function alterarAnamnese(campo, valor) {
-    setForm((atual) => ({
-      ...atual,
-      anamneseFicha: {
-        ...atual.anamneseFicha,
-        [campo]: valor
-      }
-    }));
   }
 
   function alterarItemReceita(index, campo, valor) {
@@ -342,25 +331,6 @@ export default function AtendimentoFluxo() {
     const lista = Array.from(files || []);
     setArquivos((atual) => ({ ...atual, [tipo]: lista }));
     alterar(campo, lista.map((file) => file.name));
-  }
-
-  function resumirAnamneseFicha(ficha = {}) {
-    const alertas = [
-      ficha.gestanteOuLactante && "Gestante ou lactante",
-      ficha.alergias && `Alergias: ${ficha.descricaoAlergias || "sim"}`,
-      ficha.usaMedicamentos && `Medicamentos: ${ficha.medicamentosEmUso || "sim"}`,
-      ficha.doencasCronicas && `Doenças/condições: ${ficha.descricaoDoencas || "sim"}`,
-      ficha.procedimentoEsteticoRecente && `Procedimentos recentes: ${ficha.procedimentosRecentes || "sim"}`,
-      ficha.contraindicacaoDeclarada && `Contraindicações: ${ficha.contraindicacoes || "sim"}`
-    ].filter(Boolean);
-
-    return [
-      ficha.queixaPrincipal && `Queixa principal: ${ficha.queixaPrincipal}`,
-      ficha.objetivoTratamento && `Objetivo do tratamento: ${ficha.objetivoTratamento}`,
-      alertas.length ? `Alertas: ${alertas.join("; ")}` : "",
-      ficha.habitosCuidados && `Hábitos e cuidados: ${ficha.habitosCuidados}`,
-      ficha.observacoes && `Observações: ${ficha.observacoes}`
-    ].filter(Boolean).join("\n");
   }
 
   function montarRegistro(proximoPasso = passoAtual) {
@@ -588,7 +558,7 @@ export default function AtendimentoFluxo() {
 
     if (anamneseFicha.queixaPrincipal?.trim()) {
       await api.post("/anamneses", {
-        ...anamneseFicha,
+        ...prepararPayloadAnamnese(anamneseFicha),
         clienteId,
         profissionalId: form.profissionalId ? Number(form.profissionalId) : profissionalId || null
       });
@@ -801,68 +771,11 @@ export default function AtendimentoFluxo() {
 
           {passoAtual === 2 && (
             <div className="flow-section">
-              <h3>Anamnese com fotos</h3>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label>Queixa principal</label>
-                  <input className="form-control" value={form.anamneseFicha.queixaPrincipal} onChange={(e) => alterarAnamnese("queixaPrincipal", e.target.value)} />
-                </div>
-                <div className="col-md-6">
-                  <label>Objetivo do tratamento</label>
-                  <input className="form-control" value={form.anamneseFicha.objetivoTratamento} onChange={(e) => alterarAnamnese("objetivoTratamento", e.target.value)} />
-                </div>
-
-                <div className="col-12 anamnese-checks">
-                  {[
-                    ["gestanteOuLactante", "Gestante ou lactante"],
-                    ["alergias", "Possui alergias"],
-                    ["usaMedicamentos", "Usa medicamentos"],
-                    ["doencasCronicas", "Doenças crônicas"],
-                    ["procedimentoEsteticoRecente", "Procedimento recente"],
-                    ["contraindicacaoDeclarada", "Contraindicação declarada"]
-                  ].map(([campo, label]) => (
-                    <label className="form-check" key={campo}>
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        checked={!!form.anamneseFicha[campo]}
-                        onChange={(e) => alterarAnamnese(campo, e.target.checked)}
-                      />
-                      <span className="form-check-label">{label}</span>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="col-md-4">
-                  <label>Alergias</label>
-                  <input className="form-control" value={form.anamneseFicha.descricaoAlergias} onChange={(e) => alterarAnamnese("descricaoAlergias", e.target.value)} />
-                </div>
-                <div className="col-md-4">
-                  <label>Medicamentos em uso</label>
-                  <input className="form-control" value={form.anamneseFicha.medicamentosEmUso} onChange={(e) => alterarAnamnese("medicamentosEmUso", e.target.value)} />
-                </div>
-                <div className="col-md-4">
-                  <label>Doenças / condições</label>
-                  <input className="form-control" value={form.anamneseFicha.descricaoDoencas} onChange={(e) => alterarAnamnese("descricaoDoencas", e.target.value)} />
-                </div>
-                <div className="col-md-6">
-                  <label>Procedimentos recentes</label>
-                  <input className="form-control" value={form.anamneseFicha.procedimentosRecentes} onChange={(e) => alterarAnamnese("procedimentosRecentes", e.target.value)} />
-                </div>
-                <div className="col-md-6">
-                  <label>Contraindicações</label>
-                  <input className="form-control" value={form.anamneseFicha.contraindicacoes} onChange={(e) => alterarAnamnese("contraindicacoes", e.target.value)} />
-                </div>
-                <div className="col-md-6">
-                  <label>Hábitos e cuidados</label>
-                  <textarea className="form-control" rows="3" value={form.anamneseFicha.habitosCuidados} onChange={(e) => alterarAnamnese("habitosCuidados", e.target.value)} />
-                </div>
-                <div className="col-md-6">
-                  <label>Observações</label>
-                  <textarea className="form-control" rows="3" value={form.anamneseFicha.observacoes} onChange={(e) => alterarAnamnese("observacoes", e.target.value)} />
-                </div>
-              </div>
-              <textarea className="form-control d-none" rows="7" value={form.anamnese} onChange={(e) => alterar("anamnese", e.target.value)} placeholder="Histórico, alergias, medicações, contraindicações, procedimentos anteriores e observações clínicas." />
+              <h3>Anamnese clínica e fotos</h3>
+              <AnamneseClinicaForm
+                value={form.anamneseFicha}
+                onChange={(anamneseFicha) => alterar("anamneseFicha", anamneseFicha)}
+              />
               <label className="flow-upload">
                 Fotos da anamnese
                 <input type="file" multiple accept="image/*" onChange={(e) => selecionarArquivos("anamnese", e.target.files, "fotosAnamnese")} />
