@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
+import LeitorCodigoCamera from "../components/LeitorCodigoCamera";
 import { formatarMoeda } from "../utils/masks";
+import { urlArquivo } from "../utils/urlArquivo";
 import {
   alertaErro,
   alertaSucesso,
@@ -36,6 +38,35 @@ export default function Produtos() {
   const [filtroEstoque, setFiltroEstoque] = useState("TODOS");
   const [form, setForm] = useState(inicial);
   const [editandoId, setEditandoId] = useState(null);
+  const codigoRef = useRef(null);
+  const [cameraAberta, setCameraAberta] = useState(false);
+  const [codigoLido, setCodigoLido] = useState("");
+  const [fotoArquivo, setFotoArquivo] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState("");
+
+  function selecionarFoto(e) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(arquivo.type)) {
+      e.target.value = "";
+      return alertaErro("Selecione uma imagem JPG, PNG ou WebP.");
+    }
+    if (arquivo.size > 5 * 1024 * 1024) {
+      e.target.value = "";
+      return alertaErro("A foto deve ter no máximo 5 MB.");
+    }
+    setFotoArquivo(arquivo);
+    const leitor = new FileReader();
+    leitor.onload = () => setFotoPreview(String(leitor.result || ""));
+    leitor.readAsDataURL(arquivo);
+  }
+
+  function receberCodigo(codigo) {
+    const valor = codigo.trim();
+    setForm(atual => ({ ...atual, codigoBarras: valor }));
+    setCodigoLido(valor);
+    setCameraAberta(false);
+  }
 
   async function carregar() {
     try {
@@ -61,16 +92,26 @@ export default function Produtos() {
         aliquotaCofins: Number(form.aliquotaCofins || 0)
       };
 
+      let produtoId = editandoId;
       if (editandoId) {
         await api.put(`/produtos/${editandoId}`, payload);
-        await alertaSucesso("Produto atualizado com sucesso.");
       } else {
-        await api.post("/produtos", payload);
-        await alertaSucesso("Produto cadastrado com sucesso.");
+        const resposta = await api.post("/produtos", payload);
+        produtoId = resposta.data?.id;
       }
+
+      if (fotoArquivo && produtoId) {
+        const dadosFoto = new FormData();
+        dadosFoto.append("foto", fotoArquivo);
+        await api.post(`/produtos/${produtoId}/foto`, dadosFoto);
+      }
+
+      await alertaSucesso(editandoId ? "Produto atualizado com sucesso." : "Produto cadastrado com sucesso.");
 
       setForm(inicial);
       setEditandoId(null);
+      setFotoArquivo(null);
+      setFotoPreview("");
       await carregar();
     } catch (error) {
       alertaErro(error.response?.data || "Não foi possível salvar o produto.");
@@ -108,11 +149,15 @@ export default function Produtos() {
       aliquotaPis: produto.aliquotaPis || 0,
       aliquotaCofins: produto.aliquotaCofins || 0
     });
+    setFotoArquivo(null);
+    setFotoPreview(urlArquivo(produto.foto));
   }
 
   function cancelarEdicao() {
     setForm(inicial);
     setEditandoId(null);
+    setFotoArquivo(null);
+    setFotoPreview("");
   }
 
   const produtosFiltrados = lista.filter((x) => {
@@ -157,8 +202,25 @@ export default function Produtos() {
         subtitle="Cadastro de produtos, estoque e dados tributários opcionais"
       />
 
+      {cameraAberta && <LeitorCodigoCamera onFechar={() => setCameraAberta(false)} onCodigo={receberCodigo} />}
+
       <form className="panel mb-3" onSubmit={salvar}>
         <h5>Dados do produto</h5>
+
+        <div className="product-photo-field product-photo-field-top">
+          <label className="product-photo-preview" htmlFor="produto-foto">
+            {fotoPreview ? <img src={fotoPreview} alt="Prévia do produto" /> : <span><strong>Adicionar foto</strong><small>Clique para escolher</small></span>}
+          </label>
+          <div className="product-photo-content">
+            <strong>Imagem do produto</strong>
+            <span>Identifica o produto no estoque, na pesquisa e no carrinho do PDV.</span>
+            <label className="file-upload-button" htmlFor="produto-foto">
+              {fotoPreview ? "Trocar foto" : "Escolher foto"}
+              <input id="produto-foto" type="file" accept="image/jpeg,image/png,image/webp" onChange={selecionarFoto} />
+            </label>
+            <small>{fotoArquivo?.name || "JPG, PNG ou WebP, até 5 MB."}</small>
+          </div>
+        </div>
 
         <div className="row g-2">
           <div className="col-md-3">
@@ -172,14 +234,24 @@ export default function Produtos() {
           </div>
 
           <div className="col-md-2">
-            <label>Cód. barras</label>
+            <label htmlFor="produto-codigo-barras">Cód. barras</label>
             <input
+              id="produto-codigo-barras"
+              ref={codigoRef}
               className="form-control"
+              type="text"
+              autoComplete="off"
+              placeholder="Digite ou bipe o código"
               value={form.codigoBarras || ""}
-              onChange={(e) =>
-                setForm({ ...form, codigoBarras: e.target.value })
-              }
+              onFocus={e => e.target.select()}
+              onChange={e => { setCodigoLido(""); setForm({ ...form, codigoBarras: e.target.value }); }}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); receberCodigo(e.currentTarget.value); } }}
             />
+            <div className="product-barcode-actions">
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { codigoRef.current?.focus(); codigoRef.current?.select(); }}>Usar leitor</button>
+              <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setCameraAberta(true)}>Ler pela câmera</button>
+            </div>
+            {codigoLido && <small className="product-barcode-feedback" role="status">Código lido: {codigoLido}. Salve o produto ao terminar.</small>}
           </div>
 
           <div className="col-md-2">
@@ -478,7 +550,7 @@ export default function Produtos() {
             <tbody>
               {produtosFiltrados.map((x) => (
                 <tr key={x.id}>
-                  <td>{x.nome}</td>
+                  <td><div className="product-list-identity">{x.foto ? <img src={urlArquivo(x.foto)} alt="" /> : <span className="product-list-placeholder">Sem foto</span>}<strong>{x.nome}</strong></div></td>
                   <td>{x.codigoBarras || "-"}</td>
                   <td>{x.ncm || "-"}</td>
                   <td>{x.cfop || "-"}</td>

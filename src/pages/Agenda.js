@@ -7,6 +7,9 @@ import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { alertaErro, alertaSucesso } from "../utils/alerts";
 import { formatarDataHora, mascaraTelefone } from "../utils/masks";
+import useToqueAgenda, { PRESSAO_LONGA_AGENDA } from "../hooks/useToqueAgenda";
+import useWorkflowAgenda from "../hooks/useWorkflowAgenda";
+import ConfirmacaoAgendamento from "../components/ConfirmacaoAgendamento";
 
 const locales = { "pt-BR": ptBR };
 
@@ -149,6 +152,7 @@ function formatarDataLonga(date) {
 
 export default function Agenda() {
   const navigate = useNavigate();
+  const { habilitado: confirmacaoAgendamentoHabilitada } = useWorkflowAgenda();
   const [eventos, setEventos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [servicos, setServicos] = useState([]);
@@ -172,6 +176,7 @@ export default function Agenda() {
   const [servicoBuscaFocado, setServicoBuscaFocado] = useState(false);
   const [clienteDetalhesFocado, setClienteDetalhesFocado] = useState(false);
   const [servicoDetalhesFocado, setServicoDetalhesFocado] = useState(false);
+  const toqueAgenda = useToqueAgenda({ habilitado: true, aoSelecionar: abrirResumoDoDia });
   const sugestoesClientes = filtrarPorLabel(clientes, clienteBusca, clienteLabel);
   const sugestoesServicos = filtrarPorLabel(servicos, servicoBusca, servicoLabel);
   const sugestoesClientesDetalhes = filtrarPorLabel(clientes, clienteDetalhesBusca, clienteLabel);
@@ -400,6 +405,40 @@ export default function Agenda() {
     }
   }
 
+  async function confirmarAgendamentoManualmente() {
+    if (!eventoSelecionado) return;
+
+    try {
+      await api.put(`/atendimentos/${eventoSelecionado.id}/confirmar`);
+      await alertaSucesso("Agendamento confirmado manualmente.");
+      setDetalhesAberto(false);
+      await carregar();
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível confirmar o agendamento.");
+    }
+  }
+
+  async function enviarConfirmacaoWhatsApp() {
+    const telefone = String(itemDetalhe?.clienteTelefone || "").replace(/\D/g, "");
+    if (!telefone) {
+      alertaErro("Este cliente não possui telefone cadastrado.");
+      return;
+    }
+
+    try {
+      const { data: link } = await api.post(`/atendimentos/${eventoSelecionado.id}/link-confirmacao`);
+      const numero = telefone.startsWith("55") ? telefone : `55${telefone}`;
+      const cliente = clientes.find((item) => String(item.id) === String(itemDetalhe?.clienteId));
+      const nome = cliente?.nome || "cliente";
+      const data = formatarDataHora(eventoSelecionado.start);
+      const urlConfirmacao = `${window.location.origin}/confirmar-agendamento/${link.token}`;
+      const mensagem = `Olá, ${nome}! Seu agendamento está marcado para ${data}. Confirme sua presença pelo link: ${urlConfirmacao}`;
+      window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível gerar o link de confirmação.");
+    }
+  }
+
   async function salvarDetalhesAtendimento(e) {
     e?.preventDefault?.();
     if (!eventoSelecionado) return;
@@ -484,6 +523,8 @@ export default function Agenda() {
 
   const itemDetalhe = eventoSelecionado?.resource;
   const detalheFinalizado = atendimentoFinalizado(itemDetalhe?.status);
+  const detalheCancelado = itemDetalhe?.status === "Cancelado";
+  const detalheConfirmado = itemDetalhe?.status === "Confirmado";
 
   return (
     <div>
@@ -492,7 +533,7 @@ export default function Agenda() {
         subtitle="Clique em uma data ou horário para ver o resumo e agendar"
       />
 
-      <div className="panel agenda-panel">
+      <div className="panel agenda-panel" {...toqueAgenda}>
         <Calendar
           localizer={localizer}
           events={eventos}
@@ -501,6 +542,8 @@ export default function Agenda() {
           culture="pt-BR"
           style={{ height: 650 }}
           selectable
+          longPressThreshold={PRESSAO_LONGA_AGENDA}
+          slotPropGetter={data => ({ "data-agenda-horario": data.toISOString() })}
           onSelectSlot={abrirResumoDoDia}
           onSelectEvent={abrirDetalhes}
           eventPropGetter={eventStyleGetter}
@@ -819,6 +862,7 @@ export default function Agenda() {
                       <div>
                         <span>Status</span>
                         <strong>{itemDetalhe?.status || "-"}</strong>
+                        <ConfirmacaoAgendamento status={itemDetalhe?.status} origem={itemDetalhe?.confirmacaoOrigem} />
                       </div>
                       <div>
                         <span>Profissional</span>
@@ -962,12 +1006,36 @@ export default function Agenda() {
                           onChange={(e) => setFormDetalhes({ ...formDetalhes, status: e.target.value })}
                         >
                           <option value="Agendado">Agendado</option>
+                          <option value="Confirmado">Confirmado</option>
                           <option value="Em atendimento">Em atendimento</option>
                           <option value="Finalizado">Finalizado</option>
                           <option value="Cancelado">Cancelado</option>
                         </select>
                       </div>
                     </div>
+                  )}
+
+                  {!editandoDetalhes && confirmacaoAgendamentoHabilitada && !detalheFinalizado && !detalheCancelado && (
+                    <section className="agenda-confirmation-panel" aria-label="Confirmação do agendamento">
+                      <div>
+                        <span className="agenda-confirmation-eyebrow">Confirmação de presença</span>
+                        <strong>{detalheConfirmado ? "Presença confirmada" : "Aguardando confirmação"}</strong>
+                        <small>O cliente recebe um link seguro para confirmar. Se ele responder por mensagem, você também pode confirmar manualmente.</small>
+                      </div>
+                      <div className="agenda-confirmation-actions">
+                        <button type="button" className="btn btn-outline-success" onClick={enviarConfirmacaoWhatsApp}>
+                          Enviar pelo WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={detalheConfirmado}
+                          onClick={confirmarAgendamentoManualmente}
+                        >
+                          {detalheConfirmado ? "Já confirmado" : "Confirmar manualmente"}
+                        </button>
+                      </div>
+                    </section>
                   )}
                 </div>
 

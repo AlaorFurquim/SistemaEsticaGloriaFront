@@ -1,0 +1,8 @@
+.report-brand{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-bottom:18px;margin-bottom:18px;border-bottom:2px solid #6f4cff;break-inside:avoid}
+.report-brand-copy{min-width:0;display:grid;gap:5px;overflow-wrap:anywhere}.report-brand-copy strong{font-size:22px;line-height:1.25}.report-brand-copy span{font-size:13px;color:var(--muted,#64748b)}
+.report-brand-logo{flex:0 0 92px;width:92px;height:64px;display:grid;place-items:center;border-radius:10px;background:#6f4cff;color:white;font-size:24px;font-weight:800;overflow:hidden}
+.report-brand-logo.has-image{background:white}.report-brand-logo img{max-width:100%;max-height:64px;width:auto;height:auto;object-fit:contain}
+.report-page .report-header h2{font-size:22px}.report-page .report-footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid var(--border,#d9d3e6);padding-top:14px;margin-top:20px;font-size:12px}
+.report-page .report-table-wrapper{max-width:100%;overflow-x:auto}.report-page .report-table{min-width:600px}
+@media(max-width:600px){.report-brand{gap:14px}.report-brand-copy strong{font-size:19px}.report-brand-logo{flex-basis:72px;width:72px;height:56px}.report-brand-logo img{max-height:56px}}
+@media print{.report-brand{color:#172033!important}.report-brand-copy span{color:#475569!important}.report-brand-logo{print-color-adjust:exact;-webkit-print-color-adjust:exact}.report-page{color:#172033!important;background:white!important}.report-page .report-footer{color:#475569!important}.report-page .report-table-wrapper{overflow:visible}.report-page .report-table{min-width:0}}

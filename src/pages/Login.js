@@ -5,9 +5,11 @@ import api from "../api";
 import { alertaErro } from "../utils/alerts";
 import { aplicarTemaBase, aplicarTemaCompleto, obterIniciais, useTenantTheme } from "../utils/theme";
 import { linkSuporteWhatsApp } from "../utils/whatsappSupport";
+import { useSessao } from "../components/SessaoProvider";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { verificar } = useSessao();
   const tema = useTenantTheme();
   const emailLembrado = localStorage.getItem("loginEmail") || "";
   const [email, setEmail] = useState(emailLembrado);
@@ -19,6 +21,7 @@ export default function Login() {
   const [pixCopiado, setPixCopiado] = useState(false);
 
   useEffect(() => {
+    document.title = "Lap Beauty";
     const mensagem = sessionStorage.getItem("mensagemAcesso");
     if (mensagem) {
       sessionStorage.removeItem("mensagemAcesso");
@@ -30,7 +33,10 @@ export default function Login() {
     if (!email.includes("@") || entrando) return undefined;
     const timer = setTimeout(() => {
       api.get("/publico/tema", { params: { email } })
-        .then((res) => aplicarTemaCompleto(res.data))
+        .then(async (res) => {
+          await aplicarTemaCompleto(res.data);
+          document.title = "Lap Beauty";
+        })
         .catch(() => null);
     }, 400);
     return () => clearTimeout(timer);
@@ -66,7 +72,10 @@ export default function Login() {
       localStorage.setItem("email", response.data.email);
       localStorage.setItem("perfil", perfil);
       if (response.data.tenantId) localStorage.setItem("tenantId", response.data.tenantId);
+      if (response.data.statusAssinatura) localStorage.setItem("statusAssinatura", response.data.statusAssinatura);
+      if (response.data.testeExpiraEm) localStorage.setItem("testeExpiraEm", response.data.testeExpiraEm);
       if (response.data.tema) aplicarTemaBase(response.data.tema);
+      await verificar();
 
       if (lembrarAcesso) {
         localStorage.setItem("loginEmail", email);
@@ -91,6 +100,8 @@ export default function Login() {
       const dados = error.response?.data;
       if (dados?.codigo === "MENSALIDADE_VENCIDA" && dados.cobranca) {
         setCobranca(dados.cobranca);
+      } else if (dados?.codigo === "TESTE_EXPIRADO") {
+        alertaErro(dados.mensagem || "Seu período de teste terminou. Contrate o plano para continuar.");
       } else {
         alertaErro(
           typeof dados === "string" ? dados : dados?.mensagem ||

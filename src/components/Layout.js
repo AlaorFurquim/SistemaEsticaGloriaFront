@@ -45,9 +45,15 @@ export default function Layout() {
   const perfil = localStorage.getItem("perfil");
   const tema = useTenantTheme();
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const statusAssinatura = localStorage.getItem("statusAssinatura");
+  const testeExpiraEm = localStorage.getItem("testeExpiraEm");
+  const diasRestantesTeste = statusAssinatura === "Teste" && testeExpiraEm
+    ? Math.max(0, Math.ceil((new Date(testeExpiraEm).getTime() - Date.now()) / 86400000))
+    : null;
 
   const [menusAbertos, setMenusAbertos] = useState({
     atendimento: true,
+    comercial: false,
     clientes: false,
     estoque: false,
     cadastros: false,
@@ -162,6 +168,7 @@ export default function Layout() {
               onToggle={toggleMenu}
             >
               <MenuLink to="/agenda" icon="📅" onNavigate={fecharMenuMobile}>Agenda</MenuLink>
+              {(isAdmin || isGerente) && <MenuLink to="/agendamento-online" icon="🔗" onNavigate={fecharMenuMobile}>Agendamento online</MenuLink>}
               <MenuLink to="/atendimentos" icon="📝" onNavigate={fecharMenuMobile}>Fichas</MenuLink>
               <MenuLink to="/anamneses" icon="📋" onNavigate={fecharMenuMobile}>Anamnese</MenuLink>
               <MenuLink to="/prontuarios" icon="📋" onNavigate={fecharMenuMobile}>Prontuários</MenuLink>
@@ -170,6 +177,25 @@ export default function Layout() {
               <MenuLink to="/planos-tratamento" icon="🗂️" onNavigate={fecharMenuMobile}>Planos</MenuLink>
               <MenuLink to="/receitas" icon="🧾" onNavigate={fecharMenuMobile}>Receitas</MenuLink>
               <MenuLink to="/orcamentos" icon="💰" onNavigate={fecharMenuMobile}>Orçamentos</MenuLink>
+              {isProfissional && <MenuLink to="/minhas-comissoes" icon="💰" onNavigate={fecharMenuMobile}>Minhas comissões</MenuLink>}
+            </MenuGroup>
+          )}
+
+          {(isAdmin || isGerente || isAtendente) && (
+            <MenuGroup
+              id="comercial"
+              title="Comercial / PDV"
+              icon="🛒"
+              aberto={menusAbertos.comercial}
+              onToggle={toggleMenu}
+            >
+              <MenuLink to="/pdv" icon="🧾" onNavigate={fecharMenuMobile}>PDV</MenuLink>
+              {(isAdmin || isGerente) && <MenuLink to="/vendas" icon="📋" onNavigate={fecharMenuMobile}>Vendas</MenuLink>}
+              <MenuLink to="/caixa" icon="💵" onNavigate={fecharMenuMobile}>Caixa e fechamento</MenuLink>
+              {(isAdmin || isGerente) && <MenuLink to="/pdv-terminais" icon="▦" onNavigate={fecharMenuMobile}>Terminais</MenuLink>}
+              {(isAdmin || isGerente) && <MenuLink to="/financeiro" icon="📒" onNavigate={fecharMenuMobile}>Contas e fluxo</MenuLink>}
+              {(isAdmin || isGerente) && <MenuLink to="/comissoes" icon="💰" onNavigate={fecharMenuMobile}>Comissões</MenuLink>}
+              {(isAdmin || isGerente) && <MenuLink to="/fechamento-mensal" icon="📅" onNavigate={fecharMenuMobile}>Fechamento mensal</MenuLink>}
             </MenuGroup>
           )}
 
@@ -183,6 +209,8 @@ export default function Layout() {
             >
               <MenuLink to="/clientes" icon="👤" onNavigate={fecharMenuMobile}>Cadastro de Clientes</MenuLink>
               <MenuLink to="/aniversariantes" icon="🎂" onNavigate={fecharMenuMobile}>Aniversariantes</MenuLink>
+              <MenuLink to="/fidelidade" icon="🎁" onNavigate={fecharMenuMobile}>Fidelidade e planos</MenuLink>
+              <MenuLink to="/marketing" icon="📣" onNavigate={fecharMenuMobile}>Marketing e retornos</MenuLink>
             </MenuGroup>
           )}
 
@@ -211,6 +239,7 @@ export default function Layout() {
               <MenuLink to="/profissionais" icon="💇" onNavigate={fecharMenuMobile}>Profissionais</MenuLink>
               <MenuLink to="/servicos" icon="✨" onNavigate={fecharMenuMobile}>Serviços</MenuLink>
               <MenuLink to="/configuracao-clinica" icon="🏥" onNavigate={fecharMenuMobile}>Empresa e visual</MenuLink>
+              {isAdmin && <MenuLink to="/unidades-vinculadas" icon="🏢" onNavigate={fecharMenuMobile}>Unidades vinculadas</MenuLink>}
             </MenuGroup>
           )}
 
@@ -226,6 +255,8 @@ export default function Layout() {
               <MenuLink to="/relatorios" icon="📈" onNavigate={fecharMenuMobile}>Relatórios</MenuLink>
               <MenuLink to="/alertas" icon="⚠️" onNavigate={fecharMenuMobile}>Alertas</MenuLink>
               <MenuLink to="/financeiro-completo" icon="💳" onNavigate={fecharMenuMobile}>Financeiro</MenuLink>
+              <MenuLink to="/mensalidades" icon="🧾" onNavigate={fecharMenuMobile}>Mensalidades do sistema</MenuLink>
+              <MenuLink to="/inadimplentes" icon="⚠️" onNavigate={fecharMenuMobile}>Inadimplentes</MenuLink>
               <MenuLink to="/crm" icon="💬" onNavigate={fecharMenuMobile}>CRM</MenuLink>
               <MenuLink to="/configuracao-nfse" icon="🔧" onNavigate={fecharMenuMobile}>Configuração fiscal</MenuLink>
             </MenuGroup>
@@ -240,6 +271,9 @@ export default function Layout() {
               onToggle={toggleMenu}
             >
               <MenuLink to="/usuarios" icon="👨‍💻" onNavigate={fecharMenuMobile}>Usuários</MenuLink>
+              <MenuLink to="/parametros-sistema" icon="⚙️" onNavigate={fecharMenuMobile}>Parâmetros do sistema</MenuLink>
+              <MenuLink to="/administracao" icon="🏢" onNavigate={fecharMenuMobile}>Administração comercial</MenuLink>
+              <MenuLink to="/auditoria" icon="📋" onNavigate={fecharMenuMobile}>Logs e auditoria</MenuLink>
               <MenuLink to="/lgpd" icon="🛡️" onNavigate={fecharMenuMobile}>LGPD</MenuLink>
             </MenuGroup>
           )}
@@ -252,6 +286,12 @@ export default function Layout() {
       </aside>
 
       <main className="content">
+        {diasRestantesTeste !== null && (
+          <div className="trial-status-banner" role="status">
+            <strong>Período de teste</strong>
+            <span>{diasRestantesTeste === 0 ? "Termina hoje" : `${diasRestantesTeste} ${diasRestantesTeste === 1 ? "dia restante" : "dias restantes"}`}</span>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

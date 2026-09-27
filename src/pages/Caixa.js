@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { formatarMoeda, formatarDataHora } from "../utils/masks";
+import { alertaErro, alertaSucesso } from "../utils/alerts";
 
 export default function Caixa() {
   const [caixa, setCaixa] = useState(null);
@@ -12,9 +13,11 @@ export default function Caixa() {
   const [tipo, setTipo] = useState("SANGRIA");
   const [descricao, setDescricao] = useState("");
   const [valorFinal, setValorFinal] = useState(0);
+  const [senhaFechamento, setSenhaFechamento] = useState("");
+  const [justificativaFechamento, setJustificativaFechamento] = useState("");
 
   async function carregarPdvs() {
-    const res = await api.get("/pdvterminais");
+    const res = await api.get("/caixa/pdvs");
     setPdvs(res.data || []);
 
     if ((res.data || []).length > 0 && !pdvId) {
@@ -59,15 +62,28 @@ export default function Caixa() {
   }
 
   async function fechar() {
-    await api.post("/caixa/fechar", {
-      caixaId: caixa.id,
-      pdvId: Number(pdvId),
-      valorFinalInformado: Number(valorFinal),
-      observacao: "Fechamento pelo sistema"
-    });
+    const temFalta = Number(valorFinal || 0) < saldo;
+    if (temFalta && !justificativaFechamento.trim()) return alertaErro("Informe a justificativa da diferença encontrada.");
+    if (temFalta && !senhaFechamento) return alertaErro("Informe sua senha para autorizar o fechamento com falta.");
 
-    setValorFinal(0);
-    await carregar();
+    try {
+      await api.post("/caixa/fechar", {
+        caixaId: caixa.id,
+        pdvId: Number(pdvId),
+        valorFinalInformado: Number(valorFinal),
+        observacao: "Fechamento pelo sistema",
+        senhaAutorizacao: temFalta ? senhaFechamento : null,
+        justificativaDiferenca: temFalta ? justificativaFechamento.trim() : null
+      });
+
+      setValorFinal(0);
+      setSenhaFechamento("");
+      setJustificativaFechamento("");
+      await carregar();
+      await alertaSucesso(temFalta ? "Caixa fechado com diferença e registro de auditoria." : "Caixa fechado com sucesso.");
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível fechar o caixa.");
+    }
   }
 
   useEffect(() => {
@@ -217,6 +233,13 @@ export default function Caixa() {
           <div className="panel mt-3">
             <h5>Fechamento</h5>
 
+            {Number(valorFinal || 0) < saldo && (
+              <div className="cash-shortage-warning">
+                <strong>Diferença de caixa: faltam {formatarMoeda(saldo - Number(valorFinal || 0))}</strong>
+                <span>Para continuar, informe a justificativa e confirme com sua senha. Esta ação será registrada na auditoria.</span>
+              </div>
+            )}
+
             <div className="row g-2">
               <div className="col-md-3">
                 <input
@@ -227,6 +250,27 @@ export default function Caixa() {
                   onChange={(e) => setValorFinal(e.target.value)}
                 />
               </div>
+
+              {Number(valorFinal || 0) < saldo && <>
+                <div className="col-md-4">
+                  <input
+                    className="form-control"
+                    placeholder="Justificativa obrigatória"
+                    value={justificativaFechamento}
+                    onChange={(e) => setJustificativaFechamento(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <input
+                    type="password"
+                    className="form-control"
+                    placeholder="Sua senha de acesso"
+                    autoComplete="current-password"
+                    value={senhaFechamento}
+                    onChange={(e) => setSenhaFechamento(e.target.value)}
+                  />
+                </div>
+              </>}
 
               <div className="col-md-3">
                 <button className="btn btn-danger w-100" onClick={fechar}>

@@ -14,7 +14,7 @@ export default function PdvTerminais() {
   const [editandoId, setEditandoId] = useState(null);
 
   async function carregar() {
-    const res = await api.get("/pdvterminais");
+    const res = await api.get("/caixa/pdvs");
     setLista(res.data || []);
   }
 
@@ -22,9 +22,9 @@ export default function PdvTerminais() {
     e.preventDefault();
 
     if (editandoId) {
-      await api.put(`/pdvterminais/${editandoId}`, form);
+      await api.put(`/caixa/pdvs/${editandoId}`, form);
     } else {
-      await api.post("/pdvterminais", form);
+      await api.post("/caixa/pdvs", form);
     }
 
     setForm(inicial);
@@ -44,7 +44,7 @@ export default function PdvTerminais() {
   async function excluir(id) {
     if (!window.confirm("Deseja excluir este PDV?")) return;
 
-    await api.delete(`/pdvterminais/${id}`);
+    await api.delete(`/caixa/pdvs/${id}`);
     carregar();
   }
 

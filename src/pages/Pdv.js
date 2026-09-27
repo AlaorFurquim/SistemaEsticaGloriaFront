@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
+import LeitorCodigoCamera from "../components/LeitorCodigoCamera";
+import CatalogoPdv from "../components/CatalogoPdv";
 import { formatarMoeda } from "../utils/masks";
+import { urlArquivo } from "../utils/urlArquivo";
+import useWorkflowPdv from "../hooks/useWorkflowPdv";
 import {
   alertaErro,
   alertaSucesso,
@@ -11,23 +16,31 @@ import {
 
 export default function Pdv() {
   const codigoRef = useRef(null);
+  const { separado: separarProdutosServicos } = useWorkflowPdv();
 
   const [produtos, setProdutos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [vendas, setVendas] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [pdvs, setPdvs] = useState([]);
+  const [caixasAbertos, setCaixasAbertos] = useState([]);
   const [pdvId, setPdvId] = useState("");
 
   const [clienteId, setClienteId] = useState("");
   const [clienteBusca, setClienteBusca] = useState("");
   const [codigoBarras, setCodigoBarras] = useState("");
+  const [cameraAberta, setCameraAberta] = useState(false);
   const [produtoBusca, setProdutoBusca] = useState("");
   const [quantidade, setQuantidade] = useState(1);
   const [itens, setItens] = useState([]);
   const [formaPagamento, setFormaPagamento] = useState("Dinheiro");
   const [desconto, setDesconto] = useState(0);
   const [emitirNota, setEmitirNota] = useState(true);
+  const [pix, setPix] = useState(null);
+  const [pixCarregando, setPixCarregando] = useState(false);
+  const [pixErro, setPixErro] = useState("");
+  const [pixCopiado, setPixCopiado] = useState(false);
+  const [atendimentoPendente, setAtendimentoPendente] = useState(null);
 
   async function carregar() {
     try {
@@ -35,24 +48,66 @@ export default function Pdv() {
       const clientesRes = await api.get("/clientes");
       const vendasRes = await api.get("/vendas");
       const servicosRes = await api.get("/servicos");
-      const pdvsRes = await api.get("/pdvterminais");
+      const pdvsRes = await api.get("/caixa/pdvs");
+      const caixasRes = await api.get("/caixa/abertos");
 
       setProdutos(produtosRes.data || []);
       setClientes(clientesRes.data || []);
       setVendas(vendasRes.data || []);
       setServicos(servicosRes.data || []);
+      carregarAtendimentoPendente(produtosRes.data || [], servicosRes.data || [], clientesRes.data || []);
 
       const listaPdvs = pdvsRes.data || [];
       setPdvs(listaPdvs);
+      const listaCaixas = caixasRes.data || [];
+      setCaixasAbertos(listaCaixas);
 
-      if (listaPdvs.length > 0 && !pdvId) {
-        setPdvId(listaPdvs[0].id);
+      const pdvSelecionadoTemCaixa = listaCaixas.some(x => String(x.pdvId) === String(pdvId));
+      if (!pdvSelecionadoTemCaixa) {
+        setPdvId(listaCaixas[0]?.pdvId || "");
       }
     } catch (error) {
       alertaErro(
         error.response?.data ||
           "Não foi possível carregar os dados do PDV."
       );
+    }
+  }
+
+  function carregarAtendimentoPendente(produtosCarregados, servicosCarregados, clientesCarregados) {
+    const salvo = sessionStorage.getItem("pdvAtendimentoPendente");
+    if (!salvo) return;
+
+    try {
+      const pendente = JSON.parse(salvo);
+      const itensPdv = (pendente.itens || []).map(item => {
+        if (item.produtoId) {
+          const produto = produtosCarregados.find(x => Number(x.id) === Number(item.produtoId));
+          if (!produto) return null;
+          return {
+            tipo: "PRODUTO", produtoId: produto.id, servicoId: null,
+            codigoBarras: produto.codigoBarras, nome: produto.nome,
+            quantidade: Number(item.quantidade || 1), valorUnitario: Number(produto.precoVenda || 0),
+            total: Number(produto.precoVenda || 0) * Number(item.quantidade || 1), foto: produto.foto || ""
+          };
+        }
+        const servico = servicosCarregados.find(x => Number(x.id) === Number(item.servicoId));
+        if (!servico) return null;
+        return {
+          tipo: "SERVICO", produtoId: null, servicoId: servico.id,
+          codigoBarras: "", nome: servico.nome, quantidade: Number(item.quantidade || 1),
+          valorUnitario: Number(servico.valor || 0), total: Number(servico.valor || 0) * Number(item.quantidade || 1)
+        };
+      }).filter(Boolean);
+
+      const cliente = clientesCarregados.find(x => Number(x.id) === Number(pendente.clienteId));
+      setItens(itensPdv);
+      setDesconto(Number(pendente.desconto || 0));
+      setClienteId(pendente.clienteId || "");
+      setClienteBusca(cliente?.nome || pendente.clienteNome || "");
+      setAtendimentoPendente(pendente);
+    } catch {
+      sessionStorage.removeItem("pdvAtendimentoPendente");
     }
   }
 
@@ -97,6 +152,8 @@ export default function Pdv() {
   });
 
   const pdvAtual = pdvs.find((x) => String(x.id) === String(pdvId));
+  const caixaAtual = caixasAbertos.find((x) => String(x.pdvId) === String(pdvId));
+  const pdvsComCaixaAberto = pdvs.filter(p => caixasAbertos.some(c => String(c.pdvId) === String(p.id)));
 
   const hoje = new Date();
 
@@ -204,7 +261,8 @@ export default function Pdv() {
           nome: produto.nome,
           quantidade: quantidadeNumerica,
           valorUnitario: produto.precoVenda,
-          total: produto.precoVenda * quantidadeNumerica
+          total: produto.precoVenda * quantidadeNumerica,
+          foto: produto.foto || ""
         }
       ]);
     }
@@ -241,7 +299,8 @@ export default function Pdv() {
           nome: item.nome,
           codigoBarras: item.codigoBarras,
           precoVenda: item.valor,
-          quantidadeEstoque: item.estoque
+          quantidadeEstoque: item.estoque,
+          foto: item.foto
         },
         quantidade
       );
@@ -258,9 +317,61 @@ export default function Pdv() {
   const subtotal = itens.reduce((s, x) => s + x.total, 0);
   const total = subtotal - Number(desconto || 0);
 
+  useEffect(() => {
+    if (formaPagamento !== "Pix" || total <= 0) {
+      setPix(null);
+      setPixErro("");
+      setPixCarregando(false);
+      return;
+    }
+
+    let ativo = true;
+    setPixCarregando(true);
+    setPixErro("");
+    setPixCopiado(false);
+
+    const temporizador = setTimeout(async () => {
+      try {
+        const resposta = await api.post("/pix/venda", {
+          valor: total,
+          txId: null,
+          descricao: `Venda ${pdvAtual?.numero || "PDV"}`
+        });
+        if (ativo) setPix(resposta.data);
+      } catch (error) {
+        if (!ativo) return;
+        setPix(null);
+        setPixErro(error.response?.data || "Não foi possível gerar o Pix desta venda.");
+      } finally {
+        if (ativo) setPixCarregando(false);
+      }
+    }, 300);
+
+    return () => {
+      ativo = false;
+      clearTimeout(temporizador);
+    };
+  }, [formaPagamento, total, pdvAtual?.numero]);
+
+  async function copiarPix() {
+    if (!pix?.copiaECola) return;
+    try {
+      await navigator.clipboard.writeText(pix.copiaECola);
+      setPixCopiado(true);
+      setTimeout(() => setPixCopiado(false), 2000);
+    } catch {
+      alertaErro("Não foi possível copiar o código Pix.");
+    }
+  }
+
   async function finalizar() {
     if (!pdvId) {
-      alertaAviso("Selecione o PDV antes de finalizar a venda.");
+      alertaAviso("Abra o caixa de um terminal antes de usar o PDV.");
+      return;
+    }
+
+    if (!caixaAtual) {
+      alertaAviso("O caixa deste terminal está fechado. Abra-o antes de finalizar a venda.");
       return;
     }
 
@@ -285,7 +396,7 @@ export default function Pdv() {
     try {
       const vendaRes = await api.post("/vendas", {
         clienteId: clienteId ? Number(clienteId) : null,
-        pdvId: Number(pdvId),
+        caixaId: Number(caixaAtual.id),
         formaPagamento,
         desconto: Number(desconto),
         itens: itens.map((x) => ({
@@ -295,6 +406,21 @@ export default function Pdv() {
           quantidade: x.quantidade
         }))
       });
+
+      if (atendimentoPendente?.atendimentoId) {
+        const payloadAtendimento = {
+          ...atendimentoPendente.payload,
+          formaPagamento,
+          vencimento: new Date().toISOString().slice(0, 10),
+          marcarComoPago: true,
+          finalizarNoPdv: true,
+          orcamento: {
+            ...atendimentoPendente.payload.orcamento,
+            formaPagamento
+          }
+        };
+        await api.post(`/atendimentos/${atendimentoPendente.atendimentoId}/finalizar-fluxo`, payloadAtendimento);
+      }
 
       if (emitirNota) {
         await api.post(
@@ -309,6 +435,8 @@ export default function Pdv() {
       setCodigoBarras("");
       setProdutoBusca("");
       setQuantidade(1);
+      setAtendimentoPendente(null);
+      sessionStorage.removeItem("pdvAtendimentoPendente");
 
       await carregar();
 
@@ -335,6 +463,23 @@ export default function Pdv() {
     <div>
       <PageHeader title="PDV" />
 
+      {atendimentoPendente && (
+        <div className="pdv-attendance-banner">
+          <div>
+            <strong>Atendimento #{atendimentoPendente.atendimentoId} pronto para receber</strong>
+            <span>{atendimentoPendente.clienteNome || "Cliente"} · Itens e desconto já carregados no carrinho.</span>
+          </div>
+          <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => {
+            sessionStorage.removeItem("pdvAtendimentoPendente");
+            setAtendimentoPendente(null);
+            setItens([]);
+            setDesconto(0);
+            setClienteId("");
+            setClienteBusca("");
+          }}>Cancelar envio</button>
+        </div>
+      )}
+
       <div className="pdv-card mb-3">
         <div className="row g-2 align-items-end">
           <div className="col-md-4">
@@ -345,7 +490,7 @@ export default function Pdv() {
               onChange={(e) => setPdvId(e.target.value)}
             >
               <option value="">Selecione o PDV</option>
-              {pdvs.map((p) => (
+              {pdvsComCaixaAberto.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.numero} - {p.descricao}
                 </option>
@@ -373,7 +518,19 @@ export default function Pdv() {
         </div>
       </div>
 
-      <div className="pdv-layout">
+      {!caixaAtual ? (
+        <div className="pdv-caixa-fechado">
+          <strong>Caixa fechado</strong>
+          <p>Para registrar vendas, primeiro abra o caixa de um terminal.</p>
+          <a className="btn btn-primary" href="/caixa">Abrir caixa</a>
+        </div>
+      ) : <div className="pdv-layout">
+        {cameraAberta && <LeitorCodigoCamera onFechar={() => setCameraAberta(false)} onCodigo={codigo => {
+          setCameraAberta(false);
+          setCodigoBarras(codigo);
+          const produto = produtos.find(x => String(x.codigoBarras || "").trim() === codigo);
+          adicionarProduto(produto, quantidade);
+        }} />}
         <div className="pdv-main">
           <div className="pdv-card pdv-scan-card">
             <div>
@@ -401,11 +558,15 @@ export default function Pdv() {
 
               <button className="btn btn-dark btn-lg">Adicionar</button>
             </form>
+            <button type="button" className="btn pdv-camera-button" onClick={() => setCameraAberta(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 6h3l2-3h6l2 3h3v14H4z" /><circle cx="12" cy="12" r="4" /></svg>
+              Ler pela câmera
+            </button>
           </div>
 
           <div className="pdv-card">
-            <div className="row g-3">
-              <div className="col-md-6 position-relative">
+            <div className="pdv-selecao-grid">
+              <div className="pdv-cliente-compacto">
                 <label>Cliente</label>
                 <div className="input-group">
                   <input
@@ -459,48 +620,7 @@ export default function Pdv() {
                 )}
               </div>
 
-              <div className="col-md-6 position-relative">
-                <label>Pesquisar produto ou serviço</label>
-                <input
-                  className="form-control"
-                  value={produtoBusca}
-                  onChange={(e) => setProdutoBusca(e.target.value)}
-                  placeholder="Digite nome ou código"
-                  autoComplete="off"
-                />
-
-                {produtoBusca && (
-                  <div className="pdv-dropdown">
-                    {itensFiltrados.slice(0, 8).map((p) => (
-                      <button
-                        type="button"
-                        key={`${p.tipo}-${p.id}`}
-                        className="pdv-product-item"
-                        onClick={() => adicionarPorPesquisa(p)}
-                      >
-                        <div>
-                          <strong>{p.nome}</strong>
-                          <small>
-                            {p.tipo === "PRODUTO"
-                              ? `Produto • Cód: ${
-                                  p.codigoBarras || "-"
-                                } • Estoque: ${p.estoque}`
-                              : "Serviço"}
-                          </small>
-                        </div>
-
-                        <span>{formatarMoeda(p.valor)}</span>
-                      </button>
-                    ))}
-
-                    {!itensFiltrados.length && (
-                      <div className="pdv-empty">
-                        Nenhum item encontrado.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <CatalogoPdv produtos={produtos} servicos={servicos} onAdicionar={adicionarPorPesquisa} separarProdutosServicos={separarProdutosServicos} />
             </div>
           </div>
 
@@ -542,7 +662,12 @@ export default function Pdv() {
                         </span>
                       </td>
 
-                      <td className="fw-semibold">{x.nome}</td>
+                      <td><div className="pdv-cart-product">
+                        {x.tipo === "PRODUTO" && (x.foto
+                          ? <img src={urlArquivo(x.foto)} alt="" />
+                          : <span className="pdv-cart-product-empty">Sem foto</span>)}
+                        <strong>{x.nome}</strong>
+                      </div></td>
                       <td className="text-center">{x.quantidade}</td>
                       <td className="text-end">
                         {formatarMoeda(x.valorUnitario)}
@@ -670,6 +795,29 @@ export default function Pdv() {
               </select>
             </div>
 
+            {formaPagamento === "Pix" && (
+              <div className="pdv-pix-box" aria-live="polite">
+                {total <= 0 && <p>Adicione itens para gerar o QR Code Pix.</p>}
+                {total > 0 && pixCarregando && <p>Gerando QR Code Pix...</p>}
+                {total > 0 && pixErro && <div className="pdv-pix-error">{String(pixErro)}</div>}
+                {total > 0 && pix && !pixCarregando && (
+                  <>
+                    <div className="pdv-pix-heading">
+                      <strong>Pix da venda</strong>
+                      <span>{formatarMoeda(total)}</span>
+                    </div>
+                    <div className="pdv-pix-qrcode">
+                      <QRCodeSVG value={pix.copiaECola} size={176} level="M" includeMargin />
+                    </div>
+                    <small>Abra o aplicativo do banco e escaneie o QR Code.</small>
+                    <button type="button" className="btn btn-outline-primary w-100" onClick={copiarPix}>
+                      {pixCopiado ? "Código copiado" : "Copiar código Pix"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="form-check mb-3">
               <input
                 className="form-check-input"
@@ -691,14 +839,14 @@ export default function Pdv() {
             <button
               type="button"
               className="btn btn-success w-100 btn-lg"
-              disabled={!itens.length || !pdvId}
+              disabled={!itens.length || !pdvId || !caixaAtual}
               onClick={finalizar}
             >
               Finalizar venda
             </button>
           </div>
         </aside>
-      </div>
+      </div>}
     </div>
   );
 }

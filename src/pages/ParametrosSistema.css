@@ -1,0 +1,9 @@
+.parametros-sistema{max-width:1080px}.parametros-escopo{color:var(--muted);font-size:14px;margin-bottom:24px}
+.parametros-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.parametros-tabs button{border:1px solid var(--border);border-radius:14px;padding:16px 18px;text-align:left;background:var(--surface);color:var(--text);display:grid;gap:5px}
+.parametros-tabs button span{font-size:12px;color:var(--muted)}.parametros-tabs button[aria-selected="true"]{border-color:var(--primary);box-shadow:inset 0 -3px var(--primary)}
+.parametros-panel h2{font-size:21px;margin:0 0 10px}.parametros-panel fieldset{min-width:0}.parametros-panel [role="tabpanel"]{min-height:225px}
+.parametros-choice{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--border);border-radius:12px;margin-top:12px;cursor:pointer}.parametros-choice:has(input:checked){border-color:var(--primary)}
+.parametros-choice input{margin-top:5px;accent-color:var(--primary);flex-shrink:0}.parametros-choice strong,.parametros-choice small{display:block}.parametros-choice small{color:var(--muted);margin-top:4px;font-weight:400}
+.parametros-opcao{margin:24px 0}.parametros-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;border-top:1px solid var(--border);padding-top:20px;margin-top:20px}.parametros-footer span{font-size:13px;color:var(--muted)}
+@media(max-width:600px){.parametros-tabs{gap:7px}.parametros-tabs button{padding:12px 8px;text-align:center}.parametros-tabs button span{display:none}.parametros-footer{align-items:stretch;flex-direction:column}.parametros-choice{padding:13px}}

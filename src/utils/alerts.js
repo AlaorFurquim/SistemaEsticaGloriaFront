@@ -103,3 +103,48 @@ export const loading = () =>
 export const fecharLoading = () => {
   Swal.close();
 };
+
+export const solicitarMotivo = async (titulo, rotulo) => {
+  const result = await Swal.fire({
+    title: titulo,
+    input: "textarea",
+    inputLabel: rotulo,
+    inputPlaceholder: "Descreva o motivo",
+    inputValidator: value => !value?.trim() ? "Este campo é obrigatório." : undefined,
+    showCancelButton: true,
+    confirmButtonText: "Confirmar",
+    cancelButtonText: "Voltar",
+    ...config
+  });
+  return result.isConfirmed ? result.value.trim() : null;
+};
+
+export const solicitarPinOperador = async (titulo = "Autorização necessária") => {
+  const result = await Swal.fire({
+    title: titulo,
+    input: "password",
+    inputLabel: "PIN do operador",
+    inputPlaceholder: "Digite o PIN",
+    inputValidator: value => !value?.trim() ? "Informe o PIN para continuar." : undefined,
+    showCancelButton: true,
+    confirmButtonText: "Autorizar",
+    cancelButtonText: "Voltar",
+    ...config
+  });
+  return result.isConfirmed ? result.value.trim() : null;
+};
+
+export const selecionarFormaPagamento = async () => {
+  const result = await Swal.fire({
+    title: "Concluir atendimento",
+    input: "select",
+    inputOptions: { Dinheiro: "Dinheiro", Pix: "Pix", "Cartão Débito": "Cartão Débito", "Cartão Crédito": "Cartão Crédito" },
+    inputValue: "Dinheiro",
+    inputLabel: "Forma de pagamento",
+    showCancelButton: true,
+    confirmButtonText: "Concluir e lançar no caixa",
+    cancelButtonText: "Voltar",
+    ...config
+  });
+  return result.isConfirmed ? result.value : null;
+};

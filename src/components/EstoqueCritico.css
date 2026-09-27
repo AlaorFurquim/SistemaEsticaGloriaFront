@@ -1,0 +1,10 @@
+.estoque-critico { width:min(740px,calc(100vw - 24px)); max-height:90dvh; overflow:auto; padding:24px; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px #0004; }
+.estoque-critico::backdrop { background:rgb(15 23 42 / .5); }
+.estoque-critico-lista { display:grid; gap:12px; }
+.estoque-critico-item { padding:16px; border:1px solid var(--border); border-radius:12px; }
+.estoque-critico-item>div { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+.estoque-critico-item strong { overflow-wrap:anywhere; }
+.estoque-critico-item dl { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0 0; }
+.estoque-critico-item dt { color:var(--muted); font-size:13px; font-weight:500; }
+.estoque-critico-item dd { margin:4px 0 0; font-weight:600; }
+@media(max-width:600px) { .estoque-critico { padding:18px; } .estoque-critico>.d-flex>.btn { width:auto; flex-shrink:0; } }

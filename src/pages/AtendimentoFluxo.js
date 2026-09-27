@@ -628,6 +628,52 @@ export default function AtendimentoFluxo() {
     }
   }
 
+  async function enviarParaPdv() {
+    if (!validarPasso()) return;
+
+    setSalvando(true);
+    try {
+      await salvarFluxo(passoAtual);
+      await salvarArquivosDoFluxo();
+
+      const payload = {
+        orcamentoAprovado: true,
+        justificativaOrcamentoNegado: form.justificativaOrcamentoNegado,
+        valor: subtotalOrcamento,
+        desconto: toNumber(form.desconto),
+        formaPagamento: "Dinheiro",
+        vencimento: hoje,
+        marcarComoPago: true,
+        observacoesFinanceiro: [
+          form.observacoesFinanceiro,
+          form.queixas ? `Queixas: ${form.queixas}` : "",
+          form.precisaReceita === "sim" ? "Receita emitida pelo fluxo do atendimento." : "Sem receita."
+        ].filter(Boolean).join("\n"),
+        precisaReceita: form.precisaReceita === "sim",
+        receita: form.precisaReceita === "sim" ? montarReceita() : null,
+        orcamento: { ...montarOrcamento(), formaPagamento: "Dinheiro" },
+        registro: montarRegistro(passoAtual),
+        profissionalId: form.profissionalId ? Number(form.profissionalId) : null,
+        agendarRetorno: form.temRetorno === "sim",
+        dataHoraRetorno: form.temRetorno === "sim" ? `${form.dataRetorno}T${form.horarioRetorno}` : null,
+        finalizarNoPdv: true
+      };
+
+      sessionStorage.setItem("pdvAtendimentoPendente", JSON.stringify({
+        atendimentoId: Number(id),
+        clienteId: atendimento?.clienteId || atendimento?.cliente?.id,
+        clienteNome: atendimento?.cliente?.nome || form.cadastroNome,
+        desconto: toNumber(form.desconto),
+        itens: form.orcamentoItens || [],
+        payload
+      }));
+      navigate("/pdv");
+    } catch (error) {
+      alertaErro(error.response?.data || "Não foi possível encaminhar o atendimento ao PDV.");
+      setSalvando(false);
+    }
+  }
+
   if (carregando) {
     return (
       <div>
@@ -1004,11 +1050,9 @@ export default function AtendimentoFluxo() {
 
           {passoAtual === 8 && (
             <div className="flow-section">
-              <h3>Formas e informações de pagamento</h3>
+              <h3>Encaminhar para pagamento</h3>
+              <p className="text-muted">A forma de pagamento, o Pix e a conclusão da venda serão definidos no PDV.</p>
               <div className="row g-3">
-                <div className="col-md-6"><label>Forma de pagamento</label><select className="form-select" value={form.formaPagamento} onChange={(e) => alterar("formaPagamento", e.target.value)}><option>Pix</option><option>Dinheiro</option><option>Cartão de crédito</option><option>Cartão de débito</option><option>Transferência</option><option>Boleto</option></select></div>
-                <div className="col-md-6"><label>Vencimento</label><input type="date" className="form-control" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} /></div>
-                <div className="col-12"><label className="flow-check"><input type="checkbox" checked={form.marcarComoPago} onChange={(e) => alterar("marcarComoPago", e.target.checked)} /> Marcar como pago agora</label></div>
                 <div className="col-12"><label>Observações do financeiro</label><textarea className="form-control" rows="4" value={form.observacoesFinanceiro} onChange={(e) => alterar("observacoesFinanceiro", e.target.value)} /></div>
                 <div className="col-12">
                   <label>Haverá retorno?</label>
@@ -1038,7 +1082,7 @@ export default function AtendimentoFluxo() {
             {passoAtual < passos.length - 1 ? (
               <button type="button" className="btn btn-primary" onClick={proximo} disabled={salvando}>{passoAtual === 3 && form.orcamentoStatus === "negado" ? "Salvar orçamento negado" : "Próximo"}</button>
             ) : (
-              <button type="button" className="btn btn-primary" onClick={() => finalizar(false)} disabled={salvando}>Finalizar atendimento</button>
+              <button type="button" className="btn btn-primary" onClick={enviarParaPdv} disabled={salvando}>{salvando ? "Enviando..." : "Enviar para o PDV"}</button>
             )}
           </div>
         </section>

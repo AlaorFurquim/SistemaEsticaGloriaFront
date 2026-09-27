@@ -4,5 +4,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "./style.css";
 import App from "./App";
+import { SessaoProvider } from "./components/SessaoProvider";
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <SessaoProvider>
+    <App />
+  </SessaoProvider>
+);

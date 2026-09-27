@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
+import useParametrosServicos from "../hooks/useParametrosServicos";
 import { formatarMoeda } from "../utils/masks";
 import {
   alertaErro,
@@ -27,6 +28,7 @@ const inicial = {
 };
 
 export default function Servicos() {
+  const { predefinida: duracaoPredefinida } = useParametrosServicos();
   const [lista, setLista] = useState([]);
   const [form, setForm] = useState(inicial);
   const [editandoId, setEditandoId] = useState(null);
@@ -114,7 +116,7 @@ export default function Servicos() {
     <div>
       <PageHeader
         title="Serviços"
-        subtitle="Tabela de serviços do salão e dados fiscais opcionais para NFS-e"
+        subtitle="Procedimentos e serviços da clínica, com dados fiscais opcionais para NFS-e"
       />
 
       <form className="panel mb-3" onSubmit={salvar}>
@@ -177,12 +179,16 @@ export default function Servicos() {
 
           <div className="col-md-2">
             <label>Duração</label>
-            <input
+            {duracaoPredefinida ? <select className="form-select" value={form.duracaoMinutos} onChange={e => setForm({ ...form, duracaoMinutos: e.target.value })}>
+              {Number(form.duracaoMinutos) % 10 !== 0 && <option value={form.duracaoMinutos}>{form.duracaoMinutos} min (atual)</option>}
+              {Array.from({ length: 72 }, (_, i) => (i + 1) * 10).map(minutos => <option key={minutos} value={minutos}>{minutos} min</option>)}
+            </select> : <input
               type="number"
+              min="1"
               className="form-control"
               value={form.duracaoMinutos}
               onChange={e => setForm({ ...form, duracaoMinutos: e.target.value })}
-            />
+            />}
           </div>
 
           <div className="col-md-1">

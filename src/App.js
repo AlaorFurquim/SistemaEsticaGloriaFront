@@ -32,6 +32,29 @@ import LgpdLogs from "./pages/LgpdLogs";
 import AlertasOperacionais from "./pages/AlertasOperacionais";
 import Inscricao from "./pages/Inscricao";
 import PlataformaAdmin from "./pages/PlataformaAdmin";
+import Pdv from "./pages/Pdv";
+import Caixa from "./pages/Caixa";
+import PdvTerminais from "./pages/PdvTerminais";
+import AlterarSenha from "./pages/AlterarSenha";
+import PlanosPublicos from "./pages/PlanosPublicos";
+import AgendarPublico from "./pages/AgendarPublico";
+import PrivacidadePublica from "./pages/PrivacidadePublica";
+import Financeiro from "./pages/Financeiro";
+import Mensalidades from "./pages/Mensalidades";
+import Inadimplentes from "./pages/Inadimplentes";
+import Comissoes from "./pages/Comissoes";
+import MinhasComissoes from "./pages/MinhasComissoes";
+import MeuPerfil from "./pages/MeuPerfil";
+import AgendamentoOnline from "./pages/AgendamentoOnline";
+import Workflow from "./pages/Workflow";
+import FechamentoMensal from "./pages/FechamentoMensal";
+import UnidadesVinculadas from "./pages/UnidadesVinculadas";
+import Fidelidade from "./pages/Fidelidade";
+import Marketing from "./pages/Marketing";
+import Administracao from "./pages/Administracao";
+import Vendas from "./pages/Vendas";
+import Auditoria from "./pages/Auditoria";
+import ConfirmarAgendamentoPublico from "./pages/ConfirmarAgendamentoPublico";
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -96,7 +119,30 @@ const Pages = {
   LgpdLogs: paginaSegura(LgpdLogs, "LgpdLogs"),
   AlertasOperacionais: paginaSegura(AlertasOperacionais, "AlertasOperacionais"),
   Inscricao: paginaSegura(Inscricao, "Inscricao"),
-  PlataformaAdmin: paginaSegura(PlataformaAdmin, "PlataformaAdmin")
+  PlataformaAdmin: paginaSegura(PlataformaAdmin, "PlataformaAdmin"),
+  Pdv: paginaSegura(Pdv, "Pdv"),
+  Caixa: paginaSegura(Caixa, "Caixa"),
+  PdvTerminais: paginaSegura(PdvTerminais, "PdvTerminais"),
+  AlterarSenha: paginaSegura(AlterarSenha, "AlterarSenha"),
+  PlanosPublicos: paginaSegura(PlanosPublicos, "PlanosPublicos"),
+  AgendarPublico: paginaSegura(AgendarPublico, "AgendarPublico"),
+  PrivacidadePublica: paginaSegura(PrivacidadePublica, "PrivacidadePublica"),
+  Financeiro: paginaSegura(Financeiro, "Financeiro"),
+  Mensalidades: paginaSegura(Mensalidades, "Mensalidades"),
+  Inadimplentes: paginaSegura(Inadimplentes, "Inadimplentes"),
+  Comissoes: paginaSegura(Comissoes, "Comissoes"),
+  MinhasComissoes: paginaSegura(MinhasComissoes, "MinhasComissoes"),
+  MeuPerfil: paginaSegura(MeuPerfil, "MeuPerfil"),
+  AgendamentoOnline: paginaSegura(AgendamentoOnline, "AgendamentoOnline"),
+  Workflow: paginaSegura(Workflow, "Workflow"),
+  FechamentoMensal: paginaSegura(FechamentoMensal, "FechamentoMensal"),
+  UnidadesVinculadas: paginaSegura(UnidadesVinculadas, "UnidadesVinculadas"),
+  Fidelidade: paginaSegura(Fidelidade, "Fidelidade"),
+  Marketing: paginaSegura(Marketing, "Marketing"),
+  Administracao: paginaSegura(Administracao, "Administracao"),
+  Vendas: paginaSegura(Vendas, "Vendas"),
+  Auditoria: paginaSegura(Auditoria, "Auditoria"),
+  ConfirmarAgendamentoPublico: paginaSegura(ConfirmarAgendamentoPublico, "ConfirmarAgendamentoPublico")
 };
 
 export default function App() {
@@ -105,7 +151,12 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Pages.Login />} />
         <Route path="/inscricao" element={<Pages.Inscricao />} />
+        <Route path="/alterar-senha" element={<ProtectedRoute><Pages.AlterarSenha /></ProtectedRoute>} />
+        <Route path="/planos" element={<Pages.PlanosPublicos />} />
+        <Route path="/agendar/:codigo" element={<Pages.AgendarPublico />} />
+        <Route path="/privacidade/:codigo" element={<Pages.PrivacidadePublica />} />
         <Route path="/aceite/:token" element={<Pages.AceiteTermoPublico />} />
+        <Route path="/confirmar-agendamento/:token" element={<Pages.ConfirmarAgendamentoPublico />} />
         <Route path="/plataforma" element={<ProtectedRoute roles={["PlataformaAdmin"]}><Pages.PlataformaAdmin /></ProtectedRoute>} />
 
         <Route
@@ -214,6 +265,25 @@ export default function App() {
           <Route path="configuracao-clinica" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.ConfiguracaoClinica /></ProtectedRoute>} />
           <Route path="lgpd" element={<ProtectedRoute roles={["Administrador"]}><Pages.LgpdLogs /></ProtectedRoute>} />
           <Route path="alertas" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.AlertasOperacionais /></ProtectedRoute>} />
+          <Route path="pdv" element={<ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}><Pages.Pdv /></ProtectedRoute>} />
+          <Route path="caixa" element={<ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}><Pages.Caixa /></ProtectedRoute>} />
+          <Route path="pdv-terminais" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.PdvTerminais /></ProtectedRoute>} />
+          <Route path="financeiro" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.Financeiro /></ProtectedRoute>} />
+          <Route path="mensalidades" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.Mensalidades /></ProtectedRoute>} />
+          <Route path="inadimplentes" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.Inadimplentes /></ProtectedRoute>} />
+          <Route path="comissoes" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.Comissoes /></ProtectedRoute>} />
+          <Route path="minhas-comissoes" element={<ProtectedRoute roles={["Profissional"]}><Pages.MinhasComissoes /></ProtectedRoute>} />
+          <Route path="meu-perfil" element={<Pages.MeuPerfil />} />
+          <Route path="agendamento-online" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.AgendamentoOnline /></ProtectedRoute>} />
+          <Route path="parametros-sistema" element={<ProtectedRoute roles={["Administrador"]}><Pages.Workflow /></ProtectedRoute>} />
+          <Route path="workflow" element={<Navigate to="/parametros-sistema" replace />} />
+          <Route path="fechamento-mensal" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.FechamentoMensal /></ProtectedRoute>} />
+          <Route path="unidades-vinculadas" element={<ProtectedRoute roles={["Administrador"]}><Pages.UnidadesVinculadas /></ProtectedRoute>} />
+          <Route path="fidelidade" element={<ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}><Pages.Fidelidade /></ProtectedRoute>} />
+          <Route path="marketing" element={<ProtectedRoute roles={["Administrador", "Gerente", "Atendente"]}><Pages.Marketing /></ProtectedRoute>} />
+          <Route path="administracao" element={<ProtectedRoute roles={["Administrador"]}><Pages.Administracao /></ProtectedRoute>} />
+          <Route path="auditoria" element={<ProtectedRoute roles={["Administrador"]}><Pages.Auditoria /></ProtectedRoute>} />
+          <Route path="vendas" element={<ProtectedRoute roles={["Administrador", "Gerente"]}><Pages.Vendas /></ProtectedRoute>} />
 
           <Route
             path="aniversariantes"

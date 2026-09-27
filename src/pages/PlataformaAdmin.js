@@ -38,6 +38,15 @@ const percentual = (valor) => `${Number(valor || 0).toLocaleString("pt-BR", { ma
 const rotuloSituacao = (valor) => situacoes.find(([codigo]) => codigo === valor)?.[1] || valor;
 const mensagemErro = (erro, padrao) => erro.response?.data?.mensagem || erro.response?.data || padrao;
 
+function imprimirContrato(contrato, empresa) {
+  if (!contrato) return;
+  const janela = window.open("", "_blank", "noopener,noreferrer");
+  if (!janela) return alertaErro("O navegador bloqueou a janela de impressão.");
+  const escapar = (valor) => String(valor || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Contrato - ${escapar(empresa)}</title><style>body{font:14px/1.55 Arial,sans-serif;color:#181818;max-width:850px;margin:32px auto;padding:0 24px}h1{font-size:22px;margin:0 0 8px}.meta{border:1px solid #ddd;padding:14px;margin:18px 0}.meta div{margin:4px 0}pre{font:14px/1.55 Arial,sans-serif;white-space:pre-wrap;word-break:break-word}@media print{body{margin:0;max-width:none}.actions{display:none}}</style></head><body><div class="actions"><button onclick="window.print()">Imprimir</button></div><h1>Comprovante de contrato e aceite</h1><div class="meta"><div><strong>Empresa:</strong> ${escapar(empresa)}</div><div><strong>Signatário:</strong> ${escapar(contrato.nomeSignatario)} (${escapar(contrato.emailSignatario)})</div><div><strong>Aceito em:</strong> ${escapar(dataHora(contrato.aceitoEm))}</div><div><strong>Versão:</strong> ${escapar(contrato.versao)}</div><div><strong>Hash SHA-256:</strong> ${escapar(contrato.hashSha256)}</div></div><pre>${escapar(contrato.textoContrato)}</pre></body></html>`);
+  janela.document.close();
+}
+
 export default function PlataformaAdmin() {
   const navigate = useNavigate();
   const [aba, setAba] = useState("visao");
@@ -649,6 +658,23 @@ export default function PlataformaAdmin() {
                     <button className={`btn ${detalhe.tenant.bloqueado ? "btn-success" : "btn-outline-danger"}`} onClick={() => alternarBloqueio(detalhe.tenant)}>{detalhe.tenant.bloqueado ? "Desbloquear acesso" : "Bloquear acesso"}</button>
                   </div>
                   <dl><div><dt>Cadastro</dt><dd>{dataHora(detalhe.tenant.criadoEm)}</dd></div><div><dt>Último login</dt><dd>{dataHora(detalhe.tenant.ultimoLoginEm)}</dd></div><div><dt>Fim do teste</dt><dd>{dataHora(detalhe.tenant.testeExpiraEm)}</dd></div></dl>
+
+                  <details className="platform-detail-section platform-contract-section" open>
+                    <summary>Contrato e aceite</summary>
+                    {!detalhe.contratoAceite && <p>Nenhum contrato eletrônico registrado para esta empresa.</p>}
+                    {detalhe.contratoAceite && <div className="platform-contract-proof">
+                      <dl>
+                        <div><dt>Assinado por</dt><dd>{detalhe.contratoAceite.nomeSignatario}<br />{detalhe.contratoAceite.emailSignatario}</dd></div>
+                        <div><dt>Data do aceite</dt><dd>{dataHora(detalhe.contratoAceite.aceitoEm)}</dd></div>
+                        <div><dt>Mensalidade contratada</dt><dd>{moeda(detalhe.contratoAceite.valorContratado)}</dd></div>
+                        <div><dt>Permanência</dt><dd>{detalhe.contratoAceite.permanenciaMeses} meses</dd></div>
+                        <div><dt>Multa antecipada</dt><dd>{percentual(detalhe.contratoAceite.multaCancelamentoPercentual)}</dd></div>
+                        <div><dt>Versão</dt><dd>{detalhe.contratoAceite.versao}</dd></div>
+                      </dl>
+                      <small title={detalhe.contratoAceite.hashSha256}>Integridade SHA-256: {detalhe.contratoAceite.hashSha256}</small>
+                      <button type="button" className="btn btn-outline-dark" onClick={() => imprimirContrato(detalhe.contratoAceite, detalhe.tenant.nome)}>Imprimir contrato aceito</button>
+                    </div>}
+                  </details>
 
                   <h3>Cobrança mensal</h3>
                   <form className="platform-edit-form platform-billing-form" onSubmit={salvarCobranca}>

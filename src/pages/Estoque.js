@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api";
 import PageHeader from "../components/PageHeader";
 import { formatarDataHora } from "../utils/masks";
+import { urlArquivo } from "../utils/urlArquivo";
 import {
   alertaErro,
   alertaSucesso,
@@ -22,6 +23,7 @@ export default function Estoque() {
   const [produtos, setProdutos] = useState([]);
   const [movs, setMovs] = useState([]);
   const [form, setForm] = useState(inicial);
+  const produtoSelecionado = produtos.find(x => x.id === Number(form.produtoId));
 
   async function carregar() {
     try {
@@ -88,6 +90,12 @@ export default function Estoque() {
       />
 
       <form className="panel mb-3" onSubmit={salvar}>
+        {produtoSelecionado && <div className="stock-selected-product">
+          {produtoSelecionado.foto
+            ? <img src={urlArquivo(produtoSelecionado.foto)} alt={`Foto de ${produtoSelecionado.nome}`} />
+            : <span className="stock-product-photo-empty">Sem foto</span>}
+          <div><small>Produto selecionado</small><strong>{produtoSelecionado.nome}</strong><span>Estoque atual: {produtoSelecionado.quantidadeEstoque}</span></div>
+        </div>}
         <div className="row g-2">
           <div className="col-md-3">
             <label>Produto</label>
@@ -173,7 +181,12 @@ export default function Estoque() {
             {movs.map(x => (
               <tr key={x.id}>
                 <td>{formatarDataHora(x.data)}</td>
-                <td>{x.produto?.nome}</td>
+                <td><div className="stock-product-identity">
+                  {x.produto?.foto
+                    ? <img src={urlArquivo(x.produto.foto)} alt="" />
+                    : <span className="stock-product-photo-empty">Sem foto</span>}
+                  <strong>{x.produto?.nome}</strong>
+                </div></td>
                 <td>
                   <span
                     className={

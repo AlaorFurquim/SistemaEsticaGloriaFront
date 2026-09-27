@@ -3,7 +3,9 @@ export function apenasNumeros(valor) {
 }
 
 export function mascaraTelefone(valor) {
-  const v = apenasNumeros(valor).slice(0, 11);
+  let numero = apenasNumeros(valor);
+  if ((numero.length === 12 || numero.length === 13) && numero.startsWith("55")) numero = numero.slice(2);
+  const v = numero.slice(0, 11);
   if (v.length <= 10) {
     return v.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
   }
@@ -20,6 +22,16 @@ export function mascaraCpfCnpj(valor) {
 
 export function formatarMoeda(valor) {
   return Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function moedaParaNumero(valor) {
+  if (typeof valor === "number") return valor;
+  const somenteNumeros = apenasNumeros(String(valor || ""));
+  return Number(somenteNumeros || 0) / 100;
+}
+
+export function mascaraMoeda(valor) {
+  return formatarMoeda(moedaParaNumero(valor));
 }
 
 export function formatarDataHora(valor) {
